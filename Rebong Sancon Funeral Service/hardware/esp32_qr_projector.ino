@@ -1,51 +1,47 @@
 /*
  =========================================================================================
-  RebongSancon Funeral Services - ESP32 Smart QR Projector & Display Gateway
+  RebongSancon Funeral Services - ESP32 Smart QR Projector (Firebase Cloud HTTPS Polling)
   Laguna University Capstone - Group 15 (Pascual, Pejas, Pineda)
  =========================================================================================
-  
-  Features:
-  - Connects to Local Wi-Fi (Configurable SSID & Password)
-  - Runs an HTTP Web Server on Port 80
-  - Listens for POST /display from Flask POS:
-      Payload: {"casket_code": "CSK-OAK-01", "name": "...", "base_price": 85000, "qr_payload": "CSK-OAK-01"}
-  - Displays package details and projects the QR code for customer mobile app scanning
-  - Supports Serial Output (115200 baud) for hardware projector / HDMI / TFT displays
-  - Status endpoints:
-      -> GET  /         : Device status and active projected package
-      -> POST /display  : Receive and project new package QR code
-      -> POST /clear    : Clear projected display
+
+  Why Cloud Polling?
+  - Firebase Cloud servers cannot send direct HTTP POSTs to a private LAN IP (192.168.x.x).
+  - Instead, this ESP32 polls `GET https://<PROJECT_ID>.web.app/api/pos/qr/current` every
+    2.5 seconds using HTTPS + X-API-Key, renders any new projected QR package, and confirms
+    hardware rendering via `POST https://<PROJECT_ID>.web.app/api/pos/qr/ack`.
+  - Also keeps local HTTP status endpoint on port 80 for local diagnostics.
  =========================================================================================
 */
 
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
 #include <WebServer.h>
 
-// -----------------------------------------------------------------------------
-// 1. Wi-Fi Configuration (Replace with your local Wi-Fi credentials)
-// -----------------------------------------------------------------------------
+// 1. Wi-Fi Configuration
 const char* ssid     = "YOUR_WIFI_SSID";
 const char* password = "YOUR_WIFI_PASSWORD";
 
-// -----------------------------------------------------------------------------
-// 2. Hardware Pin Assignments & Peripherals
-// -----------------------------------------------------------------------------
-#define LED_PIN     2     // Built-in Blue LED for status indication
-#define BUZZER_PIN  4     // Optional active buzzer pin (set to -1 if not connected)
+// 2. Firebase Cloud Configuration
+const char* cloudCurrentQrUrl = "https://rebongsancondb.web.app/api/pos/qr/current";
+const char* cloudAckQrUrl     = "https://rebongsancondb.web.app/api/pos/qr/ack";
+const char* apiKey            = "REPLACE_WITH_YOUR_MOBILE_API_KEY";
 
-// -----------------------------------------------------------------------------
-// 3. Web Server on Port 80
-// -----------------------------------------------------------------------------
+const unsigned long POLL_INTERVAL_MS = 2500;
+unsigned long lastPollMs = 0;
+
+// 3. Hardware Pins
+#define LED_PIN     2
+#define BUZZER_PIN  4
+
 WebServer server(80);
 
-// Global state holding the currently projected package
-String activeCasketCode = "NONE";
+String activeQrId        = "";
+String activeCasketCode  = "NONE";
 String activePackageName = "Ready for Projection";
-float  activeBasePrice   = 0.0;
+String activeAmount      = "";
 String activeQrPayload   = "NONE";
-unsigned long lastProjectedTime = 0;
 
-// Helper: Sound short beep on buzzer
 void beepSuccess() {
   if (BUZZER_PIN != -1) {
     digitalWrite(BUZZER_PIN, HIGH);
@@ -54,79 +50,40 @@ void beepSuccess() {
   }
 }
 
-// -----------------------------------------------------------------------------
-// 4. Projection & Display Rendering Hooks
-// -----------------------------------------------------------------------------
-void renderProjectionDisplay(String code, String name, float price, String payload) {
-  // Serial Terminal Display Projection Output
+void renderProjectionDisplay(String qrId, String code, String name, String amount, String payload) {
   Serial.println("\n*************************************************************");
-  Serial.println("  [ESP32 PROJECTOR] NEW QR CODE PROJECTION DISPLAY UPDATED  ");
+  Serial.println("  [ESP32 CLOUD PROJECTOR] QR CODE PROJECTION DISPLAY UPDATED ");
   Serial.println("*************************************************************");
+  Serial.print("  QR ID        : "); Serial.println(qrId);
   Serial.print("  Package Code : "); Serial.println(code);
   Serial.print("  Package Name : "); Serial.println(name);
-  Serial.print("  Base Price   : PHP "); Serial.println(price, 2);
+  Serial.print("  Price        : "); Serial.println(amount);
   Serial.print("  QR Payload   : "); Serial.println(payload);
   Serial.println("-------------------------------------------------------------");
   Serial.println("  >> Ready for Customer Mobile App Camera Scanning <<        ");
   Serial.println("*************************************************************\n");
-
-  /*
-    OPTIONAL HARDWARE DISPLAY ATTACHMENT:
-    If using an SSD1306 OLED, ST7789 TFT screen, or HDMI/Composite projector:
-    
-    // Example for Adafruit_SSD1306:
-    display.clearDisplay();
-    display.setTextSize(1);
-    display.setTextColor(SSD1306_WHITE);
-    display.setCursor(0, 0);
-    display.println("RebongSancon POS");
-    display.println(name);
-    display.printf("PHP %.2f\n", price);
-    // Draw QR bitmap / matrix:
-    // qrcode.render(&display, payload);
-    display.display();
-  */
 }
 
-// -----------------------------------------------------------------------------
-// 5. HTTP Request Handlers
-// -----------------------------------------------------------------------------
-
-// GET / - Root Status Check
-void handleRoot() {
-  String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>ESP32 QR Projector</title></head>";
-  html += "<body style='font-family:sans-serif;background:#0f172a;color:#f8fafc;padding:30px;text-align:center;'>";
-  html += "<h2 style='color:#eab308;'>RebongSancon Funeral Services</h2>";
-  html += "<h3>ESP32 Smart QR Projector Unit</h3>";
-  html += "<p><strong>IP Address:</strong> " + WiFi.localIP().toString() + "</p>";
-  html += "<p><strong>Current Projected Package:</strong> " + activePackageName + " (" + activeCasketCode + ")</p>";
-  html += "<p><strong>QR Payload:</strong> <code>" + activeQrPayload + "</code></p>";
-  html += "<p style='color:#10b981;'><strong>Status:</strong> Online &amp; Listening on /display</p>";
-  html += "</body></html>";
-  server.send(200, "text/html", html);
-}
-
-// Simple JSON field parser for environments without ArduinoJson library
 String extractJsonField(String body, String fieldName) {
   String searchKey = "\"" + fieldName + "\"";
   int keyIndex = body.indexOf(searchKey);
   if (keyIndex == -1) return "";
-  
+
   int colonIndex = body.indexOf(":", keyIndex + searchKey.length());
   if (colonIndex == -1) return "";
-  
-  int startQuote = body.indexOf("\"", colonIndex);
-  if (startQuote != -1) {
-    int endQuote = body.indexOf("\"", startQuote + 1);
-    if (endQuote != -1) {
-      return body.substring(startQuote + 1, endQuote);
-    }
+
+  int pos = colonIndex + 1;
+  while (pos < (int)body.length() && (body[pos] == ' ' || body[pos] == '\t')) pos++;
+
+  if (pos < (int)body.length() && body[pos] == '"') {
+    int endQuote = body.indexOf("\"", pos + 1);
+    if (endQuote != -1) return body.substring(pos + 1, endQuote);
   } else {
-    // Numeric value
-    int endIndex = body.indexOf(",", colonIndex);
-    if (endIndex == -1) endIndex = body.indexOf("}", colonIndex);
+    int endIndex = body.indexOf(",", pos);
+    int braceIndex = body.indexOf("}", pos);
+    if (endIndex == -1 || (braceIndex != -1 && braceIndex < endIndex)) endIndex = braceIndex;
     if (endIndex != -1) {
-      String val = body.substring(colonIndex + 1, endIndex);
+      String val = body.substring(pos, endIndex);
       val.trim();
       return val;
     }
@@ -134,87 +91,91 @@ String extractJsonField(String body, String fieldName) {
   return "";
 }
 
-// POST /display - Receive package QR data from Smart POS
-void handleDisplay() {
-  if (server.method() != HTTP_POST) {
-    server.send(405, "application/json", "{\"status\":\"error\",\"message\":\"Method Not Allowed. Use POST.\"}");
-    return;
-  }
+void sendHardwareAck(String qrId) {
+  if (WiFi.status() != WL_CONNECTED || qrId.length() == 0) return;
 
-  String body = server.arg("plain");
-  if (body.length() == 0) {
-    server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"Empty request body.\"}");
-    return;
-  }
+  WiFiClientSecure client;
+  client.setInsecure();
+  HTTPClient http;
+  if (!http.begin(client, cloudAckQrUrl)) return;
 
-  // Parse JSON fields
-  String code    = extractJsonField(body, "casket_code");
-  String name    = extractJsonField(body, "name");
-  String priceStr = extractJsonField(body, "base_price");
-  String payload = extractJsonField(body, "qr_payload");
+  http.setTimeout(8000);
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("X-API-Key", apiKey);
 
-  if (code.length() == 0) {
-    code = extractJsonField(body, "code");
-  }
-  if (payload.length() == 0) {
-    payload = code; // Fallback to code as QR payload
-  }
-  if (name.length() == 0) {
-    name = "Funeral Package (" + code + ")";
-  }
-  float price = priceStr.toFloat();
-
-  // Update active state
-  activeCasketCode  = code;
-  activePackageName = name;
-  activeBasePrice   = price;
-  activeQrPayload   = payload;
-  lastProjectedTime = millis();
-
-  // Visual & Sound Feedback
-  digitalWrite(LED_PIN, HIGH);
-  beepSuccess();
-
-  // Render on projection display
-  renderProjectionDisplay(activeCasketCode, activePackageName, activeBasePrice, activeQrPayload);
-
-  // Return success response to Flask POS
-  String response = "{\"status\":\"success\",\"message\":\"QR projected on ESP32\",\"casket_code\":\"" + code + "\"}";
-  server.send(200, "application/json", response);
+  String payload = "{\"qr_id\":\"" + qrId + "\",\"client_ip\":\"" + WiFi.localIP().toString() + "\",\"device\":\"ESP32-Projector\"}";
+  int code = http.POST(payload);
+  Serial.print("[ESP32 ACK] HTTP "); Serial.println(code);
+  http.end();
 }
 
-// POST /clear - Clear projection
-void handleClear() {
-  activeCasketCode  = "NONE";
-  activePackageName = "Projection Cleared";
-  activeBasePrice   = 0.0;
-  activeQrPayload   = "NONE";
+void pollCloudDisplayQr() {
+  if (WiFi.status() != WL_CONNECTED) return;
 
-  Serial.println("\n[ESP32 PROJECTOR] Display projection cleared.");
-  server.send(200, "application/json", "{\"status\":\"success\",\"message\":\"Projection cleared.\"}");
+  WiFiClientSecure client;
+  client.setInsecure();
+  HTTPClient http;
+  if (!http.begin(client, cloudCurrentQrUrl)) return;
+
+  http.setTimeout(8000);
+  http.addHeader("X-API-Key", apiKey);
+
+  int httpCode = http.GET();
+  if (httpCode == 200) {
+    String body = http.getString();
+    String hasQr = extractJsonField(body, "has_qr");
+    String qrId  = extractJsonField(body, "qr_id");
+
+    if (hasQr == "true" && qrId.length() > 0 && qrId != activeQrId) {
+      activeQrId        = qrId;
+      activeQrPayload   = extractJsonField(body, "qr_text");
+      activeCasketCode  = activeQrPayload;
+      activePackageName = extractJsonField(body, "title");
+      activeAmount      = extractJsonField(body, "amount");
+
+      digitalWrite(LED_PIN, HIGH);
+      beepSuccess();
+      renderProjectionDisplay(activeQrId, activeCasketCode, activePackageName, activeAmount, activeQrPayload);
+      sendHardwareAck(activeQrId);
+    } else if (hasQr == "false" && activeQrId.length() > 0) {
+      activeQrId        = "";
+      activeCasketCode  = "NONE";
+      activePackageName = "SYSTEM READY (Standby)";
+      activeAmount      = "";
+      activeQrPayload   = "NONE";
+      Serial.println("[ESP32 CLOUD PROJECTOR] Display returned to Standby mode.");
+    }
+  }
+  http.end();
 }
 
-// -----------------------------------------------------------------------------
-// 6. Setup & Main Loop
-// -----------------------------------------------------------------------------
+void handleRoot() {
+  String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>ESP32 Cloud QR Projector</title></head>";
+  html += "<body style='font-family:sans-serif;background:#0f172a;color:#f8fafc;padding:30px;text-align:center;'>";
+  html += "<h2 style='color:#eab308;'>RebongSancon Funeral Services</h2>";
+  html += "<h3>ESP32 Cloud QR Projector Unit</h3>";
+  html += "<p><strong>Local IP:</strong> " + WiFi.localIP().toString() + "</p>";
+  html += "<p><strong>Cloud Endpoint:</strong> <code>" + String(cloudCurrentQrUrl) + "</code></p>";
+  html += "<p><strong>Current Projected Package:</strong> " + activePackageName + " (" + activeCasketCode + ")</p>";
+  html += "<p><strong>QR Payload:</strong> <code>" + activeQrPayload + "</code></p>";
+  html += "</body></html>";
+  server.send(200, "text/html", html);
+}
+
 void setup() {
   Serial.begin(115200);
   delay(1000);
 
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, LOW);
-
   if (BUZZER_PIN != -1) {
     pinMode(BUZZER_PIN, OUTPUT);
     digitalWrite(BUZZER_PIN, LOW);
   }
 
   Serial.println("\n=======================================================");
-  Serial.println(" RebongSancon Funeral Services - ESP32 QR Projector");
+  Serial.println(" RebongSancon Funeral Services - ESP32 Cloud Projector ");
   Serial.println("=======================================================");
-  Serial.print("Connecting to Wi-Fi: ");
-  Serial.println(ssid);
-
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
 
@@ -222,33 +183,28 @@ void setup() {
   while (WiFi.status() != WL_CONNECTED && attempts < 30) {
     delay(500);
     Serial.print(".");
-    digitalWrite(LED_PIN, !digitalRead(LED_PIN)); // Blink while connecting
+    digitalWrite(LED_PIN, !digitalRead(LED_PIN));
     attempts++;
   }
 
   if (WiFi.status() == WL_CONNECTED) {
     digitalWrite(LED_PIN, HIGH);
-    Serial.println("\n[SUCCESS] Wi-Fi Connected!");
-    Serial.print("ESP32 Local IP Address: ");
-    Serial.println(WiFi.localIP());
-    Serial.println("Set this IP in your Flask server's config.json as 'ESP32_IP'.");
+    Serial.println("\n[SUCCESS] Wi-Fi Connected! IP: " + WiFi.localIP().toString());
     beepSuccess();
   } else {
-    digitalWrite(LED_PIN, LOW);
-    Serial.println("\n[WARNING] Wi-Fi connection timed out. Check SSID & password.");
+    Serial.println("\n[WARNING] Wi-Fi connection timed out.");
   }
 
-  // Register WebServer routes
   server.on("/", HTTP_GET, handleRoot);
-  server.on("/display", HTTP_POST, handleDisplay);
-  server.on("/clear", HTTP_POST, handleClear);
   server.begin();
-
-  Serial.println("\nHTTP WebServer started on port 80.");
-  Serial.println("Listening for QR projection payloads at POST /display");
 }
 
 void loop() {
   server.handleClient();
+  unsigned long now = millis();
+  if (now - lastPollMs >= POLL_INTERVAL_MS) {
+    lastPollMs = now;
+    pollCloudDisplayQr();
+  }
   delay(5);
 }

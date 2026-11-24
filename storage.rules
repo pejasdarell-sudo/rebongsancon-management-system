@@ -1,0 +1,27 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Public read for showroom casket photos and billboard promo banners.
+    // All writes go through the Flask Admin SDK backend (with Pillow validation).
+    match /uploads/caskets/{fileName} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /uploads/promos/{fileName} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /uploads/qrcodes/{fileName} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Default deny everything else
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

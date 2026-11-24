@@ -1,0 +1,892 @@
+{% extends 'base.html' %}
+{% block title %}Caskets & Packages Inventory - RebongSancon{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2.5">
+        <i data-lucide="boxes" class="w-7 h-7 text-yellow-500"></i>
+        Caskets & Funeral Packages Management
+      </h1>
+      <p class="text-xs text-slate-500 mt-1">
+        Monitor inventory stock levels, customize package inclusions, upload photos & adjust prices.
+      </p>
+    </div>
+
+    {% if role == 'Admin' %}
+    <div class="flex items-center gap-2">
+      <button
+        onclick="openCreateModal()"
+        class="bg-black hover:bg-yellow-500 hover:text-black text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border border-yellow-500/30 shadow-md"
+      >
+        <i data-lucide="plus-circle" class="w-4 h-4 text-yellow-500"></i>
+        <span>Create New Package</span>
+      </button>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Package Cards Grid -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    {% for item in caskets %}
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-lg transition-all duration-200 group">
+      <!-- Image Container -->
+      <div class="h-48 bg-slate-900 border-b border-slate-100 relative overflow-hidden flex items-center justify-center">
+        {% if item.image_url %}
+          <img
+            src="{{ item.image_url }}"
+            alt="{{ item.name }}"
+            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1596701062351-8c2c14d1fce0?w=600&auto=format&fit=crop&q=60';"
+          />
+        {% else %}
+          <div class="flex flex-col items-center justify-center p-4 text-slate-400">
+            <i data-lucide="image" class="w-12 h-12 text-slate-600 mb-2"></i>
+            <span class="text-[11px] text-slate-400 font-medium">No photo uploaded</span>
+            {% if role == 'Admin' %}
+            <button
+              onclick="openEditModal('{{ item.casket_code }}')"
+              class="mt-2 text-[10px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 px-2.5 py-1 rounded-lg hover:bg-yellow-500 hover:text-black font-bold transition-all"
+            >
+              + Add Image
+            </button>
+            {% endif %}
+          </div>
+        {% endif %}
+
+        <!-- Stock Status Badge Overlay -->
+        <div class="absolute top-3 right-3">
+          {% if item.stock > 2 %}
+            <span class="text-[11px] font-bold text-emerald-800 bg-emerald-100/90 backdrop-blur-sm px-2.5 py-1 rounded-full shadow-sm border border-emerald-300">
+              {{ item.stock }} in stock
+            </span>
+          {% elif item.stock > 0 %}
+            <span class="text-[11px] font-bold text-amber-800 bg-amber-100/90 backdrop-blur-sm px-2.5 py-1 rounded-full shadow-sm border border-amber-300">
+              Low: {{ item.stock }} left
+            </span>
+          {% else %}
+            <span class="text-[11px] font-bold text-red-800 bg-red-100/90 backdrop-blur-sm px-2.5 py-1 rounded-full shadow-sm border border-red-300">
+              Out of Stock
+            </span>
+          {% endif %}
+        </div>
+
+        <div class="absolute top-3 left-3">
+          <span class="text-[10px] font-mono font-bold text-black bg-yellow-400 px-2 py-0.5 rounded shadow">
+            {{ item.casket_code }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Card Body -->
+      <div class="p-5 flex-1 flex flex-col justify-between">
+        <div>
+          <span class="text-[10px] font-bold uppercase tracking-wider text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded border border-yellow-200">
+            {{ item.category or 'Funeral Package' }}
+          </span>
+          <h3 class="text-base font-bold text-slate-800 mt-2 leading-tight">
+            {{ item.name }}
+          </h3>
+          <p class="text-xs text-slate-500 mt-1 line-clamp-2">
+            {{ item.material or 'Solid Wood' }} • {{ item.dimensions or 'Standard Full Size' }}
+          </p>
+
+          <!-- Inclusions preview -->
+          {% if item.inclusions %}
+          <div class="mt-3 pt-3 border-t border-slate-100 space-y-1">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Includes:</span>
+            <ul class="text-[11px] text-slate-600 space-y-0.5">
+              {% for inc in item.inclusions[:2] %}
+              <li class="truncate flex items-center gap-1">
+                <i data-lucide="check" class="w-3 h-3 text-emerald-600 shrink-0"></i>
+                <span class="truncate">{{ inc }}</span>
+              </li>
+              {% endfor %}
+              {% if item.inclusions | length > 2 %}
+              <li class="text-[10px] text-slate-400 italic font-medium">+{{ (item.inclusions | length) - 2 }} more inclusions</li>
+              {% endif %}
+            </ul>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Price & Action Bar -->
+        <div class="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
+          <div>
+            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Base Price:</span>
+            <span class="text-lg font-black text-amber-600">
+              {{ item.base_price | currency }}
+            </span>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <button
+              type="button"
+              data-code="{{ item.casket_code }}"
+              data-name="{{ item.name }}"
+              data-price="{{ item.base_price | currency }}"
+              data-qr="{{ item.qr_base64 or item.qr_image_url or ('/api/qr/' ~ item.casket_code ~ '.png') }}"
+              onclick="showQrModal(this.dataset.code, this.dataset.name, this.dataset.price, this.dataset.qr)"
+              title="View & Print Package QR Tag (ESP32 / Mobile App)"
+              class="p-2 rounded-lg bg-yellow-50 hover:bg-yellow-100 text-yellow-800 transition-colors border border-yellow-300 flex items-center justify-center font-bold"
+            >
+              <i data-lucide="qr-code" class="w-4 h-4 text-yellow-700"></i>
+            </button>
+            {% if role == 'Admin' %}
+            <button
+              data-code="{{ item.casket_code }}"
+              onclick="openQuickPriceModal(this.dataset.code)"
+              title="Quick edit price & stock"
+              class="p-2 rounded-lg bg-slate-100 hover:bg-yellow-50 text-slate-600 hover:text-amber-700 transition-colors border border-slate-200 flex items-center justify-center font-bold"
+            >
+              <span class="text-xs font-black">₱</span>
+            </button>
+            <button
+              data-code="{{ item.casket_code }}"
+              onclick="openEditModal(this.dataset.code)"
+              title="Full Edit Package Details"
+              class="p-2 rounded-lg bg-black hover:bg-yellow-500 text-yellow-400 hover:text-black transition-colors border border-yellow-500/30"
+            >
+              <i data-lucide="edit-3" class="w-4 h-4"></i>
+            </button>
+            <button
+              data-code="{{ item.casket_code }}"
+              onclick="deletePackage(this.dataset.code)"
+              title="Delete Package"
+              class="p-2 rounded-lg bg-red-50 hover:bg-red-600 text-red-600 hover:text-white transition-colors border border-red-200"
+            >
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="col-span-full py-16 text-center bg-white rounded-2xl border border-slate-200">
+      <i data-lucide="package-x" class="w-12 h-12 mx-auto text-slate-300 mb-3"></i>
+      <h3 class="text-base font-bold text-slate-700">No Caskets or Packages Registered</h3>
+      <p class="text-xs text-slate-400 mt-1">Click "Create New Package" to add your first funeral service deal.</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ==================================================================== -->
+<!-- CREATE / EDIT PACKAGE MODAL -->
+<!-- ==================================================================== -->
+<div id="packageModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+  <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-yellow-500/40 overflow-hidden my-8 animate-fade-in">
+    <!-- Modal Header -->
+    <div class="bg-black text-white p-5 border-b border-yellow-500/30 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="p-2 rounded-xl bg-yellow-500/20 text-yellow-500">
+          <i data-lucide="package-plus" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h3 id="modalTitle" class="font-extrabold text-base text-yellow-500">Create New Funeral Package</h3>
+          <p class="text-xs text-gray-400">Configure package deal, inclusions, pricing & image</p>
+        </div>
+      </div>
+      <button onclick="closePackageModal()" class="text-gray-400 hover:text-white p-1 rounded-lg">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <!-- Quick Preset Buttons (for Create mode) -->
+    <div id="dealPresetsBar" class="bg-slate-50 border-b border-slate-100 px-6 py-3">
+      <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Quick Deal Templates:</span>
+      <div class="flex flex-wrap gap-2 text-xs">
+        <button type="button" onclick="applyDealPreset('cheaper')" class="px-3 py-1.5 rounded-lg bg-white border border-emerald-300 text-emerald-800 font-bold hover:bg-emerald-50 transition-colors shadow-sm">
+          💡 Budget Deal (₱35,000)
+        </button>
+        <button type="button" onclick="applyDealPreset('standard')" class="px-3 py-1.5 rounded-lg bg-white border border-blue-300 text-blue-800 font-bold hover:bg-blue-50 transition-colors shadow-sm">
+          ⭐ Executive Deal (₱65,000)
+        </button>
+        <button type="button" onclick="applyDealPreset('luxury')" class="px-3 py-1.5 rounded-lg bg-white border border-amber-300 text-amber-800 font-bold hover:bg-amber-50 transition-colors shadow-sm">
+          👑 Presidential Luxury (₱120,000)
+        </button>
+        <button type="button" onclick="applyDealPreset('blank')" class="px-3 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-700 font-semibold hover:bg-slate-100 transition-colors shadow-sm">
+          ✨ Custom Blank
+        </button>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <form id="packageForm" onsubmit="handlePackageSubmit(event)" enctype="multipart/form-data" class="p-6 space-y-4 text-xs max-h-[75vh] overflow-y-auto">
+      <input type="hidden" id="formMode" value="create">
+      <input type="hidden" id="origCasketCode" value="">
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block font-bold text-slate-700 uppercase text-[11px] mb-1">Package Code *</label>
+          <input
+            type="text"
+            id="fCode"
+            placeholder="e.g. CSK-CUSTOM-05"
+            required
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 font-mono uppercase font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-yellow-500 outline-none"
+          />
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 uppercase text-[11px] mb-1">Package Name *</label>
+          <input
+            type="text"
+            id="fName"
+            placeholder="e.g. Serenity Family Dignity Deal"
+            required
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-yellow-500 outline-none"
+          />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <label class="block font-bold text-slate-700 uppercase text-[11px] mb-1">Category</label>
+          <input
+            type="text"
+            id="fCategory"
+            placeholder="e.g. Budget Package"
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:bg-white focus:ring-2 focus:ring-yellow-500 outline-none"
+          />
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 uppercase text-[11px] mb-1">Material</label>
+          <input
+            type="text"
+            id="fMaterial"
+            placeholder="e.g. Natural Pine with Satin"
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:bg-white focus:ring-2 focus:ring-yellow-500 outline-none"
+          />
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 uppercase text-[11px] mb-1">Dimensions</label>
+          <input
+            type="text"
+            id="fDimensions"
+            placeholder='80" L x 26" W x 22" H'
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:bg-white focus:ring-2 focus:ring-yellow-500 outline-none"
+          />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block font-bold text-slate-700 uppercase text-[11px] mb-1">Base Price (₱) *</label>
+          <input
+            type="number"
+            id="fPrice"
+            placeholder="35000"
+            min="0"
+            step="100"
+            required
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-base font-black text-amber-700 focus:bg-white focus:ring-2 focus:ring-yellow-500 outline-none"
+          />
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 uppercase text-[11px] mb-1">Initial Stock Count *</label>
+          <input
+            type="number"
+            id="fStock"
+            placeholder="5"
+            min="0"
+            required
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-base font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-yellow-500 outline-none"
+          />
+        </div>
+      </div>
+
+      <!-- Package Photo Upload -->
+      <div class="bg-amber-50/60 border border-amber-200 rounded-2xl p-4 space-y-2">
+        <label class="block font-bold text-amber-950 uppercase text-[11px] flex items-center justify-between">
+          <span>Package Image (Upload via System)</span>
+          <span class="text-[10px] text-amber-700 font-semibold">JPG, PNG, WEBP</span>
+        </label>
+        <div class="flex items-center gap-3">
+          <input
+            type="file"
+            id="fImageFile"
+            name="package_image"
+            accept="image/*"
+            onchange="previewModalImage(event)"
+            class="flex-1 text-xs file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-black file:text-yellow-400 hover:file:bg-yellow-500 hover:file:text-black cursor-pointer"
+          />
+        </div>
+        <input
+          type="text"
+          id="fImageUrl"
+          placeholder="Or paste direct image URL (optional)"
+          class="w-full bg-white border border-amber-200 rounded-xl px-3 py-2 text-[11px] text-slate-700 outline-none focus:ring-2 focus:ring-yellow-500"
+        />
+        <div id="imagePreviewContainer" class="hidden pt-2 flex items-center gap-3">
+          <img id="imagePreview" src="" alt="Preview" class="w-16 h-16 object-cover rounded-xl border border-amber-300 shadow">
+          <span class="text-[11px] text-emerald-700 font-bold">Image ready for upload!</span>
+        </div>
+      </div>
+
+      <!-- Inclusions & Preset Dropdown -->
+      <div class="space-y-2">
+        <div class="bg-yellow-50/60 border border-yellow-200/80 rounded-xl p-3">
+          <label class="block font-bold text-yellow-950 uppercase text-[11px] mb-1 flex items-center justify-between">
+            <span class="flex items-center gap-1.5">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5 text-yellow-600"></i>
+              Quick Inclusions Dropdown Selector
+            </span>
+            <span class="text-[10px] text-yellow-800 font-semibold font-sans normal-case">Pick to append to inclusions box</span>
+          </label>
+          <select id="inclusionQuickSelect" onchange="addInclusionFromDropdown(this)" class="w-full bg-white border border-yellow-300 rounded-xl px-3 py-2 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-yellow-500 cursor-pointer text-xs shadow-sm">
+            <option value="" selected disabled>✨ Select flowers, lights, casket type, or services to add...</option>
+            <optgroup label="🌸 Flowers (Floral Arrangements)">
+              <option value="Fresh White Orchid & Mums Casket Spray">Fresh White Orchid & Mums Casket Spray</option>
+              <option value="Twin Standing Floral Wreaths (2-Tier)">Twin Standing Floral Wreaths (2-Tier)</option>
+              <option value="Deluxe Garden Arch & Fresh Lilies Ensemble">Deluxe Garden Arch & Fresh Lilies Ensemble</option>
+              <option value="White Roses & Carnations Casket Blanket">White Roses & Carnations Casket Blanket</option>
+              <option value="Memorial Altar Fresh Flower Arrangement">Memorial Altar Fresh Flower Arrangement</option>
+            </optgroup>
+            <optgroup label="💡 Lights (Extra Vigil Ambiance & Crucifix)">
+              <option value="Traditional Brass Candelabras & Crucifix Setup">Traditional Brass Candelabras & Crucifix Setup</option>
+              <option value="Warm Ambient Vigil LED Spotlights & Halo">Warm Ambient Vigil LED Spotlights & Halo</option>
+              <option value="Premier Royal Chandelier & Pillar Light Array">Premier Royal Chandelier & Pillar Light Array</option>
+              <option value="High-Intensity Stage Vigil Accent Floodlights">High-Intensity Stage Vigil Accent Floodlights</option>
+              <option value="Illuminated Cross & Crystal Candlestick Set">Illuminated Cross & Crystal Candlestick Set</option>
+            </optgroup>
+            <optgroup label="⚰️ Casket Types & Interiors">
+              <option value="Solid Red Oak Casket with Velvet Interior">Solid Red Oak Casket with Velvet Interior</option>
+              <option value="Polished Mahogany Wood Casket with Crepe Lining">Polished Mahogany Wood Casket with Crepe Lining</option>
+              <option value="18-Gauge Protective Gasketed Stainless Steel Casket">18-Gauge Protective Gasketed Stainless Steel Casket</option>
+              <option value="Natural Pine Eco Wood Casket with Satin Finish">Natural Pine Eco Wood Casket with Satin Finish</option>
+              <option value="Premier White Lacquered Glass-Top Showcase Casket">Premier White Lacquered Glass-Top Showcase Casket</option>
+            </optgroup>
+            <optgroup label="🕊️ Extra Services & Special Amenities">
+              <option value="Professional Embalming & Full Cosmetic Restoration">Professional Embalming & Full Cosmetic Restoration</option>
+              <option value="3 Days Air-Conditioned Premier Chapel Vigil Suite">3 Days Air-Conditioned Premier Chapel Vigil Suite</option>
+              <option value="5 Days Air-Conditioned Premier Chapel Vigil Suite">5 Days Air-Conditioned Premier Chapel Vigil Suite</option>
+              <option value="Glass-Walled Modern Funeral Hearse Escort">Glass-Walled Modern Funeral Hearse Escort</option>
+              <option value="Hearse Escort + 14-Seater Family Escort Van">Hearse Escort + 14-Seater Family Escort Van</option>
+              <option value="Memorial Guest Registry Book & 100 Mass Cards">Memorial Guest Registry Book & 100 Mass Cards</option>
+              <option value="Photo Frame Easel Stand & Tarpaulin Print">Photo Frame Easel Stand & Tarpaulin Print</option>
+              <option value="Sound System & Wireless Microphone Setup">Sound System & Wireless Microphone Setup</option>
+              <option value="Burial Permit Assistance & Cemetery Escort">Burial Permit Assistance & Cemetery Escort</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block font-bold text-slate-700 uppercase text-[11px]">
+              Package Inclusions (One per line)
+            </label>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="clearInclusions()" class="text-[10px] text-red-500 hover:text-red-700 font-semibold hover:underline">
+                Clear
+              </button>
+              <span id="inclusionsCharCount" class="text-[11px] font-mono font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-full">
+                0 / 300
+              </span>
+            </div>
+          </div>
+          <textarea
+            id="fInclusions"
+            rows="4"
+            maxlength="300"
+            oninput="updateInclusionsCharCount()"
+            placeholder="Professional Embalming & Dressing&#10;3 Days Vigil Viewing Setup&#10;Glass Funeral Hearse Transportation&#10;Burial Permit Assistance"
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-700 focus:bg-white focus:ring-2 focus:ring-yellow-500 outline-none"
+          ></textarea>
+          <div class="flex items-center justify-between text-[10px] text-slate-400 mt-0.5">
+            <span>Enforced 300 letters/numbers/symbols limit.</span>
+            <span id="charLimitWarning" class="hidden text-amber-600 font-bold">Approaching 300 limit!</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+        <button
+          type="button"
+          onclick="closePackageModal()"
+          class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-semibold"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          id="btnSavePackage"
+          class="px-6 py-2.5 bg-black hover:bg-yellow-500 hover:text-black text-white font-bold rounded-xl transition-all shadow-md flex items-center gap-2 border border-yellow-500/30"
+        >
+          <i data-lucide="check" class="w-4 h-4"></i>
+          <span>Save Package</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ==================================================================== -->
+<!-- QUICK EDIT PRICE & STOCK MODAL -->
+<!-- ==================================================================== -->
+<div id="quickPriceModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+  <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl border border-yellow-500/40 p-6 space-y-4 animate-fade-in">
+    <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+      <div>
+        <h3 class="font-bold text-slate-800 text-sm">Quick Price & Stock Update</h3>
+        <p id="qpPackageName" class="text-[11px] text-slate-400 truncate max-w-[200px]"></p>
+      </div>
+      <button onclick="closeQuickPriceModal()" class="text-slate-400 hover:text-slate-600">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <form onsubmit="handleQuickPriceSubmit(event)" class="space-y-3 text-xs">
+      <input type="hidden" id="qpCode" value="">
+
+      <div>
+        <label class="block font-bold text-slate-700 uppercase text-[10px] mb-1">Package Base Price (₱)</label>
+        <input
+          type="number"
+          id="qpPrice"
+          min="0"
+          step="100"
+          required
+          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-base font-black text-amber-700 focus:bg-white focus:ring-2 focus:ring-yellow-500 outline-none"
+        />
+      </div>
+
+      <div>
+        <label class="block font-bold text-slate-700 uppercase text-[10px] mb-1">Available Stock</label>
+        <input
+          type="number"
+          id="qpStock"
+          min="0"
+          required
+          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-yellow-500 outline-none"
+        />
+      </div>
+
+      <div class="pt-2 flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onclick="closeQuickPriceModal()"
+          class="px-3 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="px-5 py-2 bg-black hover:bg-yellow-500 hover:text-black text-white font-bold rounded-xl transition-all shadow"
+        >
+          Update Price & Stock
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ==================================================================== -->
+<!-- PACKAGE QR CODE & PRINT TAG MODAL (ESP32 & Mobile App Compatible) -->
+<!-- ==================================================================== -->
+<div id="qrModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+  <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl border border-yellow-500/40 p-6 space-y-4 text-center animate-fade-in relative">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+      <div class="flex items-center gap-2">
+        <div class="p-1.5 bg-yellow-500/20 text-yellow-600 rounded-lg">
+          <i data-lucide="qr-code" class="w-4 h-4"></i>
+        </div>
+        <h3 class="font-bold text-slate-800 text-sm">Package Unique QR Tag</h3>
+      </div>
+      <button type="button" onclick="closeQrModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <!-- Printable QR Tag Area -->
+    <div id="printableQrTag" class="p-5 bg-slate-50 border-2 border-dashed border-yellow-500/50 rounded-2xl space-y-3">
+      <div>
+        <p class="text-[10px] font-bold text-yellow-600 uppercase tracking-widest">RebongSancon Funeral Services</p>
+        <h4 id="qrModalPkgName" class="font-extrabold text-sm text-slate-900 mt-1 line-clamp-2">Package Name</h4>
+        <span id="qrModalPkgCode" class="inline-block mt-1 font-mono text-xs font-bold bg-black text-yellow-400 px-2.5 py-0.5 rounded-full">CSK-CODE</span>
+      </div>
+
+      <div class="bg-white p-3 rounded-2xl border border-slate-200 inline-block shadow-sm">
+        <img id="qrModalImg" src="" alt="Package QR Code" class="w-44 h-44 mx-auto object-contain">
+      </div>
+
+      <div>
+        <span id="qrModalPkgPrice" class="text-lg font-black text-amber-700 block">₱0</span>
+        <p class="text-[10px] text-slate-500 mt-0.5">Scannable by Mobile App Scanner & ESP32 QR Scanner</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 pt-2">
+      <button type="button" onclick="closeQrModal()" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs font-semibold">
+        Close
+      </button>
+      <button type="button" onclick="printQrTag()" class="flex-1 py-2.5 bg-black hover:bg-yellow-500 hover:text-black text-white font-bold rounded-xl transition-all shadow text-xs flex items-center justify-center gap-1.5 border border-yellow-500/30">
+        <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+        <span>Print Showroom Tag</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Safely serialized catalog data (prevents editor JavaScript linter syntax errors) -->
+<script id="catalogData" type="application/json">
+[
+  {% for c in caskets %}
+  {
+    "casketCode": {{ c.casket_code | tojson | safe }},
+    "qrCode": {{ (c.qr_code or c.casket_code) | tojson | safe }},
+    "qrImageUrl": {{ (c.qr_base64 or c.qr_image_url or ('/api/qr/' ~ c.casket_code ~ '.png')) | tojson | safe }},
+    "name": {{ c.name | tojson | safe }},
+    "category": {{ (c.category or '') | tojson | safe }},
+    "material": {{ (c.material or '') | tojson | safe }},
+    "dimensions": {{ (c.dimensions or '') | tojson | safe }},
+    "basePrice": {{ c.base_price or 0 }},
+    "stock": {{ c.stock or 0 }},
+    "imageUrl": {{ (c.image_url or '') | tojson | safe }},
+    "inclusions": {{ (c.inclusions or []) | tojson | safe }}
+  }{% if not loop.last %},{% endif %}
+  {% endfor %}
+]
+</script>
+
+<script>
+// Catalog data mapped for fast modal access
+const catalog = {};
+try {
+  const rawList = JSON.parse(document.getElementById('catalogData')?.textContent || '[]');
+  rawList.forEach(item => {
+    catalog[item.casketCode] = item;
+  });
+} catch (err) {
+  console.error("Error loading catalog:", err);
+}
+
+function updateInclusionsCharCount() {
+  const textarea = document.getElementById('fInclusions');
+  const countEl = document.getElementById('inclusionsCharCount');
+  const warnEl = document.getElementById('charLimitWarning');
+  if (!textarea || !countEl) return;
+
+  const currentLen = textarea.value.length;
+  countEl.textContent = `${currentLen} / 300`;
+
+  if (currentLen >= 300) {
+    countEl.classList.remove('text-slate-600', 'text-amber-600');
+    countEl.classList.add('text-red-600', 'bg-red-50', 'border-red-300');
+    if (warnEl) {
+      warnEl.textContent = '300 character limit reached!';
+      warnEl.classList.remove('hidden', 'text-amber-600');
+      warnEl.classList.add('text-red-600');
+    }
+  } else if (currentLen >= 260) {
+    countEl.classList.remove('text-slate-600', 'text-red-600');
+    countEl.classList.add('text-amber-600', 'bg-amber-50', 'border-amber-300');
+    if (warnEl) {
+      warnEl.textContent = 'Approaching 300 limit!';
+      warnEl.classList.remove('hidden', 'text-red-600');
+      warnEl.classList.add('text-amber-600');
+    }
+  } else {
+    countEl.classList.remove('text-red-600', 'text-amber-600', 'bg-red-50', 'bg-amber-50');
+    countEl.classList.add('text-slate-600');
+    if (warnEl) warnEl.classList.add('hidden');
+  }
+}
+
+function addInclusionFromDropdown(selectEl) {
+  const val = (selectEl.value || '').trim();
+  if (!val) return;
+
+  const textarea = document.getElementById('fInclusions');
+  const currentVal = textarea.value.trim();
+
+  let nextVal = '';
+  if (!currentVal) {
+    nextVal = val;
+  } else {
+    nextVal = currentVal + '\n' + val;
+  }
+
+  if (nextVal.length > 300) {
+    alert(`Cannot add "${val}". Exceeds maximum 300 characters limit (${nextVal.length}/300). Please trim your inclusions list first.`);
+    selectEl.selectedIndex = 0;
+    return;
+  }
+
+  textarea.value = nextVal;
+  selectEl.selectedIndex = 0;
+  updateInclusionsCharCount();
+}
+
+function clearInclusions() {
+  const textarea = document.getElementById('fInclusions');
+  if (textarea) {
+    textarea.value = '';
+    updateInclusionsCharCount();
+  }
+}
+
+function showQrModal(code, name, price, qrUrl) {
+  document.getElementById('qrModalPkgName').textContent = name || code;
+  document.getElementById('qrModalPkgCode').textContent = code;
+  document.getElementById('qrModalPkgPrice').textContent = price || '₱0';
+  document.getElementById('qrModalImg').src = qrUrl || `/api/qr/${code}.png`;
+  document.getElementById('qrModal').classList.remove('hidden');
+  lucide.createIcons();
+}
+
+function closeQrModal() {
+  document.getElementById('qrModal').classList.add('hidden');
+}
+
+function printQrTag() {
+  const tagHtml = document.getElementById('printableQrTag').innerHTML;
+  const printWin = window.open('', '_blank', 'width=500,height=600');
+  printWin.document.write(`
+    <html>
+      <head>
+        <title>Print Showroom QR Tag</title>
+        <style>
+          body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+          .tag { border: 2px dashed #000; padding: 20px; border-radius: 12px; max-width: 350px; margin: 0 auto; }
+          img { width: 180px; height: 180px; margin: 15px auto; }
+          h4 { margin: 5px 0; font-size: 16px; }
+          .price { font-size: 20px; font-weight: bold; color: #b45309; }
+          .code { font-family: monospace; background: #000; color: #facc15; padding: 3px 8px; border-radius: 4px; font-size: 12px; }
+        </style>
+      </head>
+      <body onload="window.print(); window.close();">
+        <div class="tag">${tagHtml}</div>
+      </body>
+    </html>
+  `);
+  printWin.document.close();
+}
+
+function openCreateModal() {
+  document.getElementById('formMode').value = 'create';
+  document.getElementById('origCasketCode').value = '';
+  document.getElementById('modalTitle').textContent = 'Create New Funeral Package';
+  document.getElementById('dealPresetsBar').classList.remove('hidden');
+  document.getElementById('fCode').readOnly = false;
+  document.getElementById('fCode').value = 'CSK-DEAL-' + Math.floor(10 + Math.random() * 90);
+  document.getElementById('fName').value = '';
+  document.getElementById('fCategory').value = 'Standard Casket Package';
+  document.getElementById('fMaterial').value = 'Polished Hardwood';
+  document.getElementById('fDimensions').value = '80" L x 26" W x 22" H';
+  document.getElementById('fPrice').value = '45000';
+  document.getElementById('fStock').value = '5';
+  document.getElementById('fImageUrl').value = '';
+  document.getElementById('fImageFile').value = '';
+  document.getElementById('fInclusions').value = "Standard Embalming Care\n3 Days Vigil Viewing Setup\nFuneral Hearse Transportation";
+  document.getElementById('imagePreviewContainer').classList.add('hidden');
+  updateInclusionsCharCount();
+  document.getElementById('packageModal').classList.remove('hidden');
+}
+
+function openEditModal(code) {
+  const item = catalog[code];
+  if (!item) return;
+
+  document.getElementById('formMode').value = 'edit';
+  document.getElementById('origCasketCode').value = code;
+  document.getElementById('modalTitle').textContent = `Edit Package: ${code}`;
+  document.getElementById('dealPresetsBar').classList.add('hidden');
+  
+  document.getElementById('fCode').value = item.casketCode;
+  document.getElementById('fCode').readOnly = true;
+  document.getElementById('fName').value = item.name;
+  document.getElementById('fCategory').value = item.category;
+  document.getElementById('fMaterial').value = item.material;
+  document.getElementById('fDimensions').value = item.dimensions;
+  document.getElementById('fPrice').value = item.basePrice;
+  document.getElementById('fStock').value = item.stock;
+  document.getElementById('fImageUrl').value = item.imageUrl || '';
+  document.getElementById('fImageFile').value = '';
+  
+  if (Array.isArray(item.inclusions)) {
+    document.getElementById('fInclusions').value = item.inclusions.join('\n');
+  } else {
+    document.getElementById('fInclusions').value = item.inclusions || '';
+  }
+
+  const prevContainer = document.getElementById('imagePreviewContainer');
+  const preview = document.getElementById('imagePreview');
+  if (item.imageUrl) {
+    preview.src = item.imageUrl;
+    prevContainer.classList.remove('hidden');
+  } else {
+    prevContainer.classList.add('hidden');
+  }
+
+  updateInclusionsCharCount();
+  document.getElementById('packageModal').classList.remove('hidden');
+}
+
+function closePackageModal() {
+  document.getElementById('packageModal').classList.add('hidden');
+}
+
+function previewModalImage(e) {
+  const file = e.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      document.getElementById('imagePreview').src = evt.target.result;
+      document.getElementById('imagePreviewContainer').classList.remove('hidden');
+    }
+    reader.readAsDataURL(file);
+  }
+}
+
+function applyDealPreset(type) {
+  if (type === 'cheaper') {
+    document.getElementById('fName').value = 'Serenity Budget Practical Deal';
+    document.getElementById('fCategory').value = 'Affordable Wood Package';
+    document.getElementById('fMaterial').value = 'Natural Pine with White Crepe Lining';
+    document.getElementById('fPrice').value = '35000';
+    document.getElementById('fStock').value = '8';
+    document.getElementById('fInclusions').value = "Sanitization & Standard Embalming\n3 Days Chapel or Home Vigil Setup\nStandard Funeral Hearse Transportation\nGuest Registry Book";
+  } else if (type === 'standard') {
+    document.getElementById('fName').value = 'Executive Elegance Funeral Package';
+    document.getElementById('fCategory').value = 'Hardwood Casket Package';
+    document.getElementById('fMaterial').value = 'Solid Mahogany Finish with Satin Interior';
+    document.getElementById('fPrice').value = '65000';
+    document.getElementById('fStock').value = '4';
+    document.getElementById('fInclusions').value = "Complete Embalming & Cosmetic Restoration\n4 Days Air-Conditioned Chapel Vigil\nCadillac Funeral Hearse Service\nCrucifix & Memorial Vigil Lamp Setup\n100 Printed Mass Cards";
+  } else if (type === 'luxury') {
+    document.getElementById('fName').value = 'Presidential Stainless Gasketed Package';
+    document.getElementById('fCategory').value = 'Protective Metal Sealer';
+    document.getElementById('fMaterial').value = '18-Gauge Stainless Steel with Velvet Lining';
+    document.getElementById('fPrice').value = '120000';
+    document.getElementById('fStock').value = '2';
+    document.getElementById('fInclusions').value = "Hermetically Sealed Gasketed Protection\nComplete Embalming & Full Facial Dressing\n7 Days Premier Air-Conditioned Vigil Suite\nLuxury Glass Hearse with Escort Van\nPremium Fresh Floral Arrangement\n200 Memorial Cards & Keepsake Registry";
+  } else {
+    document.getElementById('fName').value = '';
+    document.getElementById('fCategory').value = 'Standard Casket Package';
+    document.getElementById('fPrice').value = '45000';
+    document.getElementById('fStock').value = '1';
+    document.getElementById('fInclusions').value = '';
+  }
+  updateInclusionsCharCount();
+}
+
+async function handlePackageSubmit(e) {
+  e.preventDefault();
+  const mode = document.getElementById('formMode').value;
+  const code = document.getElementById('fCode').value.trim().toUpperCase();
+  const origCode = document.getElementById('origCasketCode').value.trim();
+
+  const rawPrice = (document.getElementById('fPrice').value || '').trim();
+  const rawStock = (document.getElementById('fStock').value || '').trim();
+  if (rawPrice.includes('-') || Object.is(Number(rawPrice), -0) || Number(rawPrice) <= 0) {
+    alert('Base Price must be greater than ₱0 and cannot be negative or -0.');
+    return;
+  }
+  if (rawStock.includes('-') || Object.is(Number(rawStock), -0) || Number(rawStock) < 0) {
+    alert('Stock quantity cannot be negative or -0.');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('casket_code', code);
+  formData.append('name', document.getElementById('fName').value.trim());
+  formData.append('category', document.getElementById('fCategory').value.trim());
+  formData.append('material', document.getElementById('fMaterial').value.trim());
+  formData.append('dimensions', document.getElementById('fDimensions').value.trim());
+  formData.append('base_price', document.getElementById('fPrice').value);
+  formData.append('stock', document.getElementById('fStock').value);
+  formData.append('inclusions', document.getElementById('fInclusions').value);
+  formData.append('image_url', document.getElementById('fImageUrl').value.trim());
+
+  const fileInput = document.getElementById('fImageFile');
+  if (fileInput.files && fileInput.files[0]) {
+    formData.append('package_image', fileInput.files[0]);
+  }
+
+  const endpoint = mode === 'create' ? '/api/inventory' : `/api/inventory/${encodeURIComponent(origCode)}`;
+
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      body: formData
+    });
+    const result = await res.json();
+    alert(result.message || 'Package saved successfully!');
+    if (result.success) {
+      window.location.reload();
+    }
+  } catch (err) {
+    alert('Failed to save package: ' + err.message);
+  }
+}
+
+function openQuickPriceModal(code) {
+  const item = catalog[code];
+  if (!item) return;
+  document.getElementById('qpCode').value = code;
+  document.getElementById('qpPackageName').textContent = `${code} • ${item.name}`;
+  document.getElementById('qpPrice').value = item.basePrice;
+  document.getElementById('qpStock').value = item.stock;
+  document.getElementById('quickPriceModal').classList.remove('hidden');
+}
+
+function closeQuickPriceModal() {
+  document.getElementById('quickPriceModal').classList.add('hidden');
+}
+
+async function handleQuickPriceSubmit(e) {
+  e.preventDefault();
+  const code = document.getElementById('qpCode').value;
+  const price = (document.getElementById('qpPrice').value || '').trim();
+  const stock = (document.getElementById('qpStock').value || '').trim();
+
+  if (price.includes('-') || Object.is(Number(price), -0) || Number(price) <= 0) {
+    alert('Base Price must be greater than ₱0 and cannot be negative or -0.');
+    return;
+  }
+  if (stock.includes('-') || Object.is(Number(stock), -0) || Number(stock) < 0) {
+    alert('Stock quantity cannot be negative or -0.');
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/inventory/${encodeURIComponent(code)}/quick_price`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base_price: price, stock: stock })
+    });
+    const result = await res.json();
+    alert(result.message || 'Updated!');
+    if (result.success) {
+      window.location.reload();
+    }
+  } catch (err) {
+    alert('Error updating price: ' + err.message);
+  }
+}
+
+async function deletePackage(code) {
+  const item = catalog[code];
+  const name = item ? item.name : code;
+  if (!confirm(`Are you sure you want to permanently delete "${name}" (${code}) from inventory?`)) {
+    return;
+  }
+  try {
+    const res = await fetch(`/api/inventory/${encodeURIComponent(code)}`, {
+      method: 'DELETE'
+    });
+    const result = await res.json();
+    alert(result.message || 'Deleted!');
+    if (result.success) {
+      window.location.reload();
+    }
+  } catch (err) {
+    alert('Error deleting package: ' + err.message);
+  }
+}
+</script>
+{% endblock %}

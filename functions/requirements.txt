@@ -1,0 +1,9 @@
+firebase-functions>=0.4.0
+firebase-admin>=6.5.0
+Flask>=3.0.0
+Werkzeug>=3.0.0
+cryptography>=41.0.0
+qrcode>=8.0.0
+pillow>=10.0.0
+requests>=2.31.0
+tzdata>=2024.1

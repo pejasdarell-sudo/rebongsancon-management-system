@@ -1,0 +1,982 @@
+{% extends 'base.html' %}
+{% block title %}Billing & Invoices - RebongSancon{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+      <i data-lucide="receipt-text" class="w-7 h-7 text-amber-600"></i>
+      Billing & Order Management
+    </h1>
+    <p class="text-slate-500 text-sm mt-1">View active orders, process payments, and manage order archives.</p>
+  </div>
+
+  <!-- Order Type & Status Filter Tabs -->
+  <div class="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-slate-200 text-xs font-semibold overflow-x-auto">
+    <a href="/billing?tab=all" class="px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5 {% if current_tab == 'all' %}bg-white text-slate-900 shadow-sm font-bold{% else %}text-slate-600 hover:text-slate-900{% endif %}">
+      <span>All Orders</span>
+      <span class="px-1.5 py-0.5 rounded-full text-[10px] {% if current_tab == 'all' %}bg-amber-100 text-amber-800 font-bold{% else %}bg-slate-200 text-slate-600{% endif %}">{{ counts.all }}</span>
+    </a>
+
+    <a href="/billing?tab=package" class="px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5 {% if current_tab == 'package' %}bg-white text-slate-900 shadow-sm font-bold{% else %}text-slate-600 hover:text-slate-900{% endif %}">
+      <i data-lucide="package" class="w-3.5 h-3.5 text-blue-600"></i>
+      <span>Package Orders</span>
+      <span class="px-1.5 py-0.5 rounded-full text-[10px] {% if current_tab == 'package' %}bg-blue-100 text-blue-800 font-bold{% else %}bg-slate-200 text-slate-600{% endif %}">{{ counts.package }}</span>
+    </a>
+
+    <a href="/billing?tab=custom" class="px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5 {% if current_tab == 'custom' %}bg-white text-slate-900 shadow-sm font-bold{% else %}text-slate-600 hover:text-slate-900{% endif %}">
+      <i data-lucide="sliders" class="w-3.5 h-3.5 text-purple-600"></i>
+      <span>Custom Orders</span>
+      <span class="px-1.5 py-0.5 rounded-full text-[10px] {% if current_tab == 'custom' %}bg-purple-100 text-purple-800 font-bold{% else %}bg-slate-200 text-slate-600{% endif %}">{{ counts.custom }}</span>
+    </a>
+
+    {% if session.get('role') == 'Admin' %}
+    <a href="/billing?tab=archived" class="px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5 {% if current_tab == 'archived' %}bg-amber-600 text-white shadow-sm font-bold{% else %}text-amber-800 hover:bg-amber-50{% endif %}">
+      <i data-lucide="archive" class="w-3.5 h-3.5"></i>
+      <span>Archived Orders</span>
+      <span class="px-1.5 py-0.5 rounded-full text-[10px] {% if current_tab == 'archived' %}bg-white text-amber-900 font-bold{% else %}bg-amber-100 text-amber-900 font-bold{% endif %}">{{ counts.archived }}</span>
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+{% if current_tab == 'archived' %}
+<!-- Archive Notice Banner -->
+<div class="mb-4 bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-center justify-between text-amber-900 text-xs">
+  <div class="flex items-center gap-2.5">
+    <i data-lucide="shield-alert" class="w-5 h-5 text-amber-600 shrink-0"></i>
+    <div>
+      <span class="font-bold">Admin Order Archive:</span>
+      Completed and finished service orders preserved here. You can <strong>Restore</strong> an order back to active records, or <strong>Delete Permanently</strong> to remove it completely from the database.
+    </div>
+  </div>
+  <span class="bg-amber-200/80 px-2.5 py-1 rounded-lg font-bold text-[11px]">Admin Only</span>
+</div>
+{% endif %}
+
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-left text-sm">
+      <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+        <tr>
+          <th class="px-6 py-4">Invoice No.</th>
+          <th class="px-6 py-4">Type</th>
+          <th class="px-6 py-4">Date</th>
+          <th class="px-6 py-4">Client Name</th>
+          <th class="px-6 py-4">Package / Service Details</th>
+          <th class="px-6 py-4">Total Amount</th>
+          <th class="px-6 py-4">Down Payment</th>
+          <th class="px-6 py-4">Status</th>
+          <th class="px-6 py-4 text-center">Action</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for order in transactions %}
+        <tr class="hover:bg-slate-50 transition-colors">
+          <td class="px-6 py-4 font-bold font-mono text-amber-600">
+            {{ order.invoice_no }}
+          </td>
+
+          <!-- Order Type Badge -->
+          <td class="px-6 py-4 whitespace-nowrap">
+            {% if order.order_type == 'Custom' %}
+              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200 shadow-sm">
+                <i data-lucide="sliders" class="w-3 h-3 text-purple-600"></i>
+                Custom Order
+              </span>
+            {% else %}
+              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200 shadow-sm">
+                <i data-lucide="package" class="w-3 h-3 text-blue-600"></i>
+                Package Order
+              </span>
+            {% endif %}
+          </td>
+
+          <td class="px-6 py-4 text-slate-600 whitespace-nowrap text-xs">
+            <div class="font-semibold text-slate-800">{{ order.created_at_str or order.created_at or '--' }}</div>
+            {% if current_tab == 'archived' and order.archived_at_str %}
+              <span class="text-[10px] text-amber-700 font-medium">Archived: {{ order.archived_at_str }}</span>
+            {% else %}
+              <span class="text-[10px] text-slate-400">Processed Order</span>
+            {% endif %}
+          </td>
+
+          <td class="px-6 py-4">
+            <div class="font-bold text-slate-800 text-sm">{{ order.contact_person or 'Client Rep' }}</div>
+            {% if order.deceased_name %}
+              <div class="text-xs text-slate-500 font-medium">Deceased: <span class="text-slate-800 font-semibold">{{ order.deceased_name }}</span></div>
+            {% endif %}
+            {% if order.contact_number %}
+              <div class="text-[11px] text-amber-700 font-mono mt-0.5">📞 {{ order.contact_number }}</div>
+            {% endif %}
+          </td>
+
+          <td class="px-6 py-4 text-slate-700 max-w-xs">
+            <div class="font-semibold text-slate-800 line-clamp-1" title="{{ order.casket_name }}">{{ order.casket_name }}</div>
+            {% if order.order_type == 'Custom' and order.custom_details %}
+              <button onclick="viewCustomDetails('{{ order.invoice_no }}')" class="mt-1 text-[11px] text-purple-700 hover:text-purple-900 font-bold underline flex items-center gap-1">
+                <i data-lucide="eye" class="w-3 h-3"></i> View Custom Selections
+              </button>
+            {% else %}
+              <span class="text-[11px] text-slate-400 font-mono">{{ order.casket_code }}</span>
+            {% endif %}
+          </td>
+
+          <td class="px-6 py-4">
+            <div class="font-black text-slate-900">{{ order.total_amount | currency }}</div>
+            {% if order.discount_amount and order.discount_amount > 0 %}
+              <div class="inline-flex items-center gap-1 mt-0.5 px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-[10px] font-bold text-emerald-700" title="{{ order.discount_reason or 'Admin Discount' }}{% if order.discount_applied_by %} (by {{ order.discount_applied_by }}){% endif %}">
+                <span>-{{ order.discount_amount | currency }} Disc.</span>
+              </div>
+            {% endif %}
+            {% if order.overpayment_refund_due and order.overpayment_refund_due > 0 %}
+              <div class="text-[10px] text-purple-700 font-bold mt-0.5">Credit/Refund: {{ order.overpayment_refund_due | currency }}</div>
+            {% endif %}
+          </td>
+
+          <td class="px-6 py-4">
+            <div class="font-semibold text-emerald-700">{{ order.down_payment | currency }}</div>
+            {% if order.remaining_balance and order.remaining_balance > 0 %}
+              <div class="text-[10px] text-amber-800 font-bold">Bal: {{ order.remaining_balance | currency }}</div>
+            {% else %}
+              <div class="text-[10px] text-emerald-600 font-bold">Paid in full</div>
+            {% endif %}
+          </td>
+
+          <td class="px-6 py-4 space-y-1">
+            <!-- Payment Status -->
+            {% if order.payment_status == 'Fully Settled' or order.payment_status == 'Paid' or order.remaining_balance == 0 %}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                <i data-lucide="check-circle" class="w-3 h-3 text-emerald-600"></i> Fully Settled
+              </span>
+            {% else %}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                <i data-lucide="clock" class="w-3 h-3 text-amber-600"></i> Partial (Deposit)
+              </span>
+            {% endif %}
+
+            <!-- Service Job Status -->
+            <div>
+              {% if order.order_status == 'Completed' %}
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                  <i data-lucide="check" class="w-3 h-3"></i> Job Complete
+                </span>
+              {% else %}
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                  <i data-lucide="activity" class="w-3 h-3"></i> Ongoing
+                </span>
+              {% endif %}
+            </div>
+          </td>
+
+          <td class="px-6 py-4">
+            <div class="flex items-center justify-center gap-1.5 flex-wrap">
+              {% if current_tab == 'archived' %}
+                <!-- ARCHIVE ACTIONS (ADMIN ONLY): RESTORE OR DELETE PERMANENTLY -->
+                <button
+                  onclick="restoreOrder('{{ order.invoice_no }}')"
+                  class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-all flex items-center gap-1 shadow-sm"
+                  title="Restore order to active list"
+                >
+                  <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                  <span>Restore</span>
+                </button>
+
+                <button
+                  onclick="deletePermanently('{{ order.invoice_no }}')"
+                  class="px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-lg transition-all flex items-center gap-1 shadow-sm"
+                  title="Delete permanently from database"
+                >
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                  <span>Delete Permanently</span>
+                </button>
+
+                <button
+                  onclick="openDiscountModal(this)"
+                  data-invoice="{{ order.invoice_no }}"
+                  data-subtotal="{{ order.subtotal }}"
+                  data-discount="{{ order.discount_amount }}"
+                  data-downpayment="{{ order.down_payment }}"
+                  data-reason="{{ order.discount_reason | escape }}"
+                  class="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-300 font-bold text-xs rounded-lg transition-all flex items-center gap-1 shadow-sm"
+                  title="Apply or adjust Admin discount on this archived order"
+                >
+                  <i data-lucide="percent" class="w-3.5 h-3.5 text-purple-600"></i>
+                  <span>Discount</span>
+                </button>
+
+                <button onclick="printReceipt('{{ order.invoice_no }}', '{{ order.contact_person | escape }}', '{{ order.deceased_name | escape }}', '{{ order.contact_number | escape }}', '{{ order.casket_name | escape }}', '{{ order.total_amount }}', '{{ order.down_payment }}', '{{ order.remaining_balance }}', '{{ order.payment_status }}', '{{ order.created_at_str or order.created_at }}', '{{ order.order_type }}')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition-all flex items-center gap-1 border border-slate-300">
+                  <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+                  <span>Print</span>
+                </button>
+              {% else %}
+                <!-- ACTIVE ORDER ACTIONS -->
+                <button onclick="printReceipt('{{ order.invoice_no }}', '{{ order.contact_person | escape }}', '{{ order.deceased_name | escape }}', '{{ order.contact_number | escape }}', '{{ order.casket_name | escape }}', '{{ order.total_amount }}', '{{ order.down_payment }}', '{{ order.remaining_balance }}', '{{ order.payment_status }}', '{{ order.created_at_str or order.created_at }}', '{{ order.order_type }}')" class="px-2.5 py-1.5 bg-black hover:bg-yellow-500 hover:text-black text-white font-bold text-xs rounded-lg transition-all flex items-center gap-1 border border-yellow-500/30 shadow-sm" title="Print Official Receipt">
+                  <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+                  <span>Print</span>
+                </button>
+
+                <button onclick="sendReceipt('{{ order.invoice_no }}')" class="px-2.5 py-1.5 bg-yellow-50 hover:bg-yellow-100 text-yellow-800 border border-yellow-300 font-bold text-xs rounded-lg transition-all flex items-center gap-1 shadow-sm" title="Send Receipt via Email">
+                  <i data-lucide="mail" class="w-3.5 h-3.5"></i>
+                  <span>Email</span>
+                </button>
+
+                <!-- PAY BUTTON WITH PESO SIGN (₱) -->
+                {% if order.remaining_balance and order.remaining_balance > 0 %}
+                <button onclick="openPaymentModal('{{ order.invoice_no }}', '{{ order.remaining_balance }}')" class="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs rounded-lg transition-all flex items-center gap-1 shadow-sm" title="Record balance payment">
+                  <span class="font-black text-xs text-emerald-700">₱</span>
+                  <span>Pay</span>
+                </button>
+                {% endif %}
+
+                <!-- RETROACTIVE DISCOUNT BUTTON (ADMIN ONLY - WORKS ON ANY ORDER REGARDLESS OF AGE) -->
+                {% if session.get('role') == 'Admin' %}
+                <button
+                  onclick="openDiscountModal(this)"
+                  data-invoice="{{ order.invoice_no }}"
+                  data-subtotal="{{ order.subtotal }}"
+                  data-discount="{{ order.discount_amount }}"
+                  data-downpayment="{{ order.down_payment }}"
+                  data-reason="{{ order.discount_reason | escape }}"
+                  class="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-300 font-bold text-xs rounded-lg transition-all flex items-center gap-1 shadow-sm"
+                  title="Apply or adjust Admin discount on this order"
+                >
+                  <i data-lucide="percent" class="w-3.5 h-3.5 text-purple-600"></i>
+                  <span>Discount</span>
+                </button>
+                {% endif %}
+
+                <!-- MARK COMPLETE BUTTON (STAFF & ADMIN) -->
+                {% if order.order_status != 'Completed' %}
+                <button onclick="markJobComplete('{{ order.invoice_no }}')" class="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 font-bold text-xs rounded-lg transition-all flex items-center gap-1" title="Mark Service Job as Finished">
+                  <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-blue-600"></i>
+                  <span>Finish Job</span>
+                </button>
+                {% endif %}
+
+                <!-- ARCHIVE BUTTON (ADMIN ONLY) -->
+                {% if session.get('role') == 'Admin' %}
+                <button onclick="archiveOrder('{{ order.invoice_no }}')" class="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-bold text-xs rounded-lg transition-all flex items-center gap-1 shadow-sm" title="Move finished order to Archive">
+                  <i data-lucide="archive" class="w-3.5 h-3.5 text-amber-700"></i>
+                  <span>Archive</span>
+                </button>
+                {% endif %}
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9" class="px-6 py-12 text-center text-slate-400">
+            <i data-lucide="receipt-text" class="w-8 h-8 mx-auto text-slate-300 mb-2"></i>
+            {% if current_tab == 'archived' %}
+              No archived orders found in the database.
+            {% elif current_tab == 'custom' %}
+              No custom orders found. You can create custom orders in Smart POS.
+            {% elif current_tab == 'package' %}
+              No package orders found.
+            {% else %}
+              No billing invoices recorded yet.
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Update Payment Modal (All money signs peso sign ₱) -->
+<div id="paymentModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 border border-slate-200">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-sm">₱</span>
+        Update Payment
+      </h2>
+      <button onclick="closePaymentModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+    <div class="mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
+      <p class="text-xs text-slate-500">Invoice: <span id="payInvoiceNo" class="font-bold font-mono text-slate-800 text-sm"></span></p>
+      <p class="text-xs text-slate-500 mt-1">Remaining Balance: <span id="payRemainingBal" class="font-black text-amber-700 text-sm"></span></p>
+    </div>
+    <div class="space-y-4">
+      <div>
+        <label class="block font-bold text-slate-700 uppercase text-[10px] mb-1">Add Payment Amount (₱)</label>
+        <div class="relative">
+          <span class="absolute left-3 top-2.5 font-bold text-slate-400 text-sm">₱</span>
+          <input type="number" id="payAmount" min="1" step="0.01" class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-sm font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-yellow-500 outline-none" placeholder="e.g. 5000" />
+        </div>
+      </div>
+      <div class="pt-2 flex items-center justify-end gap-2">
+        <button onclick="closePaymentModal()" class="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold text-sm">Cancel</button>
+        <button onclick="submitPayment()" class="px-5 py-2 bg-black hover:bg-yellow-500 hover:text-black text-white font-bold text-sm rounded-xl transition-all shadow flex items-center gap-1.5">
+          <span class="font-bold">₱</span>
+          <span>Submit Payment</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Retroactive Discount Modal -->
+<div id="discountModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 border border-purple-200 max-h-[92vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-purple-100 text-purple-800 flex items-center justify-center font-black text-sm">%</span>
+        Apply Admin Discount
+      </h2>
+      <button onclick="closeDiscountModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <div class="mb-4 bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1 text-xs">
+      <div class="flex justify-between">
+        <span class="text-slate-500">Invoice No.:</span>
+        <span id="discInvoiceNo" class="font-bold font-mono text-slate-900">--</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-slate-500">Original Subtotal:</span>
+        <span id="discOrigSubtotal" class="font-bold text-slate-800">₱0.00</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-slate-500">Current Discount:</span>
+        <span id="discCurrentAmt" class="font-semibold text-emerald-700">₱0.00</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-slate-500">Already Paid (Deposit):</span>
+        <span id="discAlreadyPaid" class="font-semibold text-slate-800">₱0.00</span>
+      </div>
+    </div>
+
+    <div class="space-y-4 text-xs">
+      <!-- Discount Type Switcher -->
+      <div>
+        <label class="block font-bold text-slate-700 uppercase text-[10px] mb-1.5">Discount Type</label>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" id="btnDiscTypePercent" onclick="setDiscountType('percent')" class="py-2 rounded-xl font-bold border border-purple-600 bg-purple-50 text-purple-900 transition-all">
+            Percentage (%)
+          </button>
+          <button type="button" id="btnDiscTypeFixed" onclick="setDiscountType('fixed')" class="py-2 rounded-xl font-semibold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all">
+            Fixed Amount (₱)
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Presets (for Percentage Mode) -->
+      <div id="discPresetRow" class="grid grid-cols-4 gap-1.5">
+        <button type="button" onclick="applyDiscountPreset(5)" class="py-1.5 rounded-lg bg-slate-100 hover:bg-purple-100 text-slate-700 hover:text-purple-900 font-bold text-[11px] transition-colors">5%</button>
+        <button type="button" onclick="applyDiscountPreset(10)" class="py-1.5 rounded-lg bg-slate-100 hover:bg-purple-100 text-slate-700 hover:text-purple-900 font-bold text-[11px] transition-colors">10%</button>
+        <button type="button" onclick="applyDiscountPreset(20)" class="py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-[11px] transition-colors">20% SC/PWD</button>
+        <button type="button" onclick="applyDiscountPreset(0)" class="py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold text-[11px] transition-colors">0% Clear</button>
+      </div>
+
+      <!-- Discount Value Input -->
+      <div>
+        <label id="discValueLabel" class="block font-bold text-slate-700 uppercase text-[10px] mb-1">Discount Percentage (%)</label>
+        <div class="relative">
+          <span id="discValuePrefix" class="absolute left-3 top-2.5 font-bold text-slate-400 text-sm">%</span>
+          <input
+            type="number"
+            id="discValueInput"
+            min="0"
+            max="100"
+            step="0.01"
+            oninput="updateDiscountPreview()"
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-sm font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none"
+            placeholder="e.g. 20"
+          />
+        </div>
+      </div>
+
+      <!-- Optional Reason / Remarks -->
+      <div>
+        <label class="block font-bold text-slate-700 uppercase text-[10px] mb-1">Discount Reason / Remarks (Optional)</label>
+        <input
+          type="text"
+          id="discReasonInput"
+          maxlength="200"
+          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none"
+          placeholder="e.g. Senior Citizen ID presented, PWD, Family Courtesy"
+        />
+      </div>
+
+      <!-- Live Calculation Preview -->
+      <div class="p-3.5 rounded-xl bg-purple-50/70 border border-purple-200 space-y-1.5">
+        <span class="block text-[10px] font-bold uppercase tracking-wider text-purple-700">Live Preview</span>
+        <div class="flex justify-between text-emerald-700">
+          <span>New Discount:</span>
+          <span id="discPrevDiscount" class="font-bold">-₱0.00</span>
+        </div>
+        <div class="flex justify-between text-slate-900 font-extrabold text-sm pt-1 border-t border-purple-200/80">
+          <span>New Total Amount:</span>
+          <span id="discPrevTotal">₱0.00</span>
+        </div>
+        <div class="flex justify-between text-amber-900 font-bold">
+          <span>New Remaining Balance:</span>
+          <span id="discPrevRemaining">₱0.00</span>
+        </div>
+        <div id="discOverpayNotice" class="hidden mt-1.5 p-2 rounded-lg bg-amber-100 border border-amber-300 text-amber-950 text-[11px] font-semibold"></div>
+      </div>
+
+      <div class="pt-2 flex items-center justify-end gap-2">
+        <button type="button" onclick="closeDiscountModal()" class="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold text-sm">Cancel</button>
+        <button type="button" id="btnSubmitDiscount" onclick="submitAdminDiscount()" class="px-5 py-2 bg-purple-700 hover:bg-purple-800 text-white font-bold text-sm rounded-xl transition-all shadow flex items-center gap-1.5">
+          <i data-lucide="percent" class="w-4 h-4"></i>
+          <span>Apply Discount</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Custom Order Breakdown Modal -->
+<div id="customModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 border border-slate-200 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+      <div>
+        <span class="text-[10px] uppercase font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full">Custom Funeral Order</span>
+        <h2 class="text-lg font-bold text-slate-800 mt-1 flex items-center gap-1.5">
+          <i data-lucide="sliders" class="w-5 h-5 text-purple-600"></i>
+          <span id="custModalInvoice">INV-000</span>
+        </h2>
+      </div>
+      <button onclick="closeCustomModal()" class="text-slate-400 hover:text-slate-600">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <div id="customModalContent" class="space-y-3 text-xs">
+      <!-- Populated dynamically via JS -->
+    </div>
+
+    <div class="pt-4 mt-4 border-t border-slate-100 flex justify-end">
+      <button onclick="closeCustomModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentPayInvoice = '';
+
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function openPaymentModal(invoiceNo, balance) {
+  currentPayInvoice = invoiceNo;
+  document.getElementById('payInvoiceNo').innerText = invoiceNo;
+  document.getElementById('payRemainingBal').innerText = '₱' + Number(balance).toLocaleString('en-PH', {minimumFractionDigits:2});
+  document.getElementById('payAmount').value = balance;
+  document.getElementById('paymentModal').classList.remove('hidden');
+  document.getElementById('paymentModal').classList.add('flex');
+}
+
+function closePaymentModal() {
+  document.getElementById('paymentModal').classList.add('hidden');
+  document.getElementById('paymentModal').classList.remove('flex');
+}
+
+function submitPayment() {
+  const amt = document.getElementById('payAmount').value;
+  if (!amt || String(amt).includes('-') || Object.is(Number(amt), -0) || Number(amt) <= 0) {
+    return alert('Enter a valid positive payment amount (cannot be negative or -0).');
+  }
+  
+  fetch('/api/payment/update', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ invoice_no: currentPayInvoice, add_payment: amt })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === 'success') {
+      location.reload();
+    } else {
+      alert(data.message);
+    }
+  })
+  .catch(err => alert("Payment error: " + err));
+}
+
+// ==============================================================
+// ADMIN RETROACTIVE DISCOUNT MODAL LOGIC
+// ==============================================================
+let discState = {
+  invoiceNo: '',
+  subtotal: 0,
+  currentDiscount: 0,
+  downPayment: 0,
+  type: 'percent'
+};
+
+function fmtPeso(val) {
+  return '₱' + Number(val || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function openDiscountModal(btn) {
+  discState.invoiceNo = btn.dataset.invoice || '';
+  discState.subtotal = parseFloat(btn.dataset.subtotal || '0') || 0;
+  discState.currentDiscount = parseFloat(btn.dataset.discount || '0') || 0;
+  discState.downPayment = parseFloat(btn.dataset.downpayment || '0') || 0;
+  const existingReason = btn.dataset.reason || '';
+
+  document.getElementById('discInvoiceNo').innerText = discState.invoiceNo;
+  document.getElementById('discOrigSubtotal').innerText = fmtPeso(discState.subtotal);
+  document.getElementById('discCurrentAmt').innerText = fmtPeso(discState.currentDiscount);
+  document.getElementById('discAlreadyPaid').innerText = fmtPeso(discState.downPayment);
+  document.getElementById('discReasonInput').value = existingReason;
+
+  // Default to percentage mode pre-filled with current discount percentage (if any)
+  setDiscountType('percent', false);
+  const currentPct = discState.subtotal > 0 ? Math.round((discState.currentDiscount / discState.subtotal) * 10000) / 100 : 0;
+  document.getElementById('discValueInput').value = currentPct > 0 ? currentPct : '';
+  updateDiscountPreview();
+
+  const modal = document.getElementById('discountModal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  if (window.lucide) lucide.createIcons();
+}
+
+function closeDiscountModal() {
+  const modal = document.getElementById('discountModal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+function setDiscountType(type, clearInput = true) {
+  discState.type = type;
+  const btnPct = document.getElementById('btnDiscTypePercent');
+  const btnFix = document.getElementById('btnDiscTypeFixed');
+  const presetRow = document.getElementById('discPresetRow');
+  const label = document.getElementById('discValueLabel');
+  const prefix = document.getElementById('discValuePrefix');
+  const input = document.getElementById('discValueInput');
+
+  const activeCls = 'py-2 rounded-xl font-bold border border-purple-600 bg-purple-50 text-purple-900 transition-all';
+  const inactiveCls = 'py-2 rounded-xl font-semibold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all';
+
+  if (type === 'percent') {
+    btnPct.className = activeCls;
+    btnFix.className = inactiveCls;
+    presetRow.classList.remove('hidden');
+    label.innerText = 'Discount Percentage (%)';
+    prefix.innerText = '%';
+    input.max = '100';
+    input.placeholder = 'e.g. 20';
+  } else {
+    btnPct.className = inactiveCls;
+    btnFix.className = activeCls;
+    presetRow.classList.add('hidden');
+    label.innerText = 'Fixed Discount Amount (₱)';
+    prefix.innerText = '₱';
+    input.max = String(discState.subtotal);
+    input.placeholder = 'e.g. 5000';
+  }
+
+  if (clearInput) input.value = '';
+  updateDiscountPreview();
+}
+
+function applyDiscountPreset(pct) {
+  setDiscountType('percent', false);
+  document.getElementById('discValueInput').value = pct;
+  const reasonEl = document.getElementById('discReasonInput');
+  if (pct === 20 && !reasonEl.value.trim()) {
+    reasonEl.value = 'Senior Citizen / PWD Discount (20%)';
+  } else if (pct === 0) {
+    reasonEl.value = '';
+  }
+  updateDiscountPreview();
+}
+
+function updateDiscountPreview() {
+  const raw = parseFloat(document.getElementById('discValueInput').value);
+  const val = isNaN(raw) || raw < 0 ? 0 : raw;
+  let newDisc = 0;
+
+  if (discState.type === 'percent') {
+    const pct = Math.min(val, 100);
+    newDisc = Math.round(((discState.subtotal * pct) / 100) * 100) / 100;
+  } else {
+    newDisc = Math.round(Math.min(val, discState.subtotal) * 100) / 100;
+  }
+
+  const newTotal = Math.max(0, Math.round((discState.subtotal - newDisc) * 100) / 100);
+  const newRem = Math.max(0, Math.round((newTotal - discState.downPayment) * 100) / 100);
+  const refundDue = Math.max(0, Math.round((discState.downPayment - newTotal) * 100) / 100);
+
+  document.getElementById('discPrevDiscount').innerText = '-' + fmtPeso(newDisc);
+  document.getElementById('discPrevTotal').innerText = fmtPeso(newTotal);
+  document.getElementById('discPrevRemaining').innerText = fmtPeso(newRem);
+
+  const overpayEl = document.getElementById('discOverpayNotice');
+  if (refundDue > 0) {
+    overpayEl.innerText = `Note: Client already paid ${fmtPeso(discState.downPayment)}. Status will become Fully Settled with a Credit/Refund Due of ${fmtPeso(refundDue)}.`;
+    overpayEl.classList.remove('hidden');
+  } else {
+    overpayEl.classList.add('hidden');
+  }
+}
+
+function submitAdminDiscount() {
+  const rawVal = (document.getElementById('discValueInput').value || '').trim();
+  if (rawVal === '' || rawVal.includes('-') || isNaN(Number(rawVal)) || Object.is(Number(rawVal), -0) || Number(rawVal) < 0) {
+    return alert('Please enter a valid discount value (0 or greater; cannot be negative or -0).');
+  }
+
+  const val = Number(rawVal);
+  if (discState.type === 'percent' && val > 100) {
+    return alert('Discount percentage cannot exceed 100%.');
+  }
+  if (discState.type === 'fixed' && val > discState.subtotal + 0.01) {
+    return alert(`Fixed discount (${fmtPeso(val)}) cannot exceed the original subtotal (${fmtPeso(discState.subtotal)}).`);
+  }
+
+  const reason = (document.getElementById('discReasonInput').value || '').trim();
+  const label = discState.type === 'percent' ? `${val}%` : fmtPeso(val);
+  if (!confirm(`Confirm applying ${label} discount to Invoice ${discState.invoiceNo}?\n\nNew Total: ${document.getElementById('discPrevTotal').innerText}\nNew Remaining Balance: ${document.getElementById('discPrevRemaining').innerText}`)) {
+    return;
+  }
+
+  const btn = document.getElementById('btnSubmitDiscount');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="animate-spin">⟳</span><span>Applying...</span>`;
+
+  fetch('/api/order/discount', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      invoice_no: discState.invoiceNo,
+      discount_type: discState.type,
+      discount_value: val,
+      reason: reason
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === 'success') {
+      alert(data.message);
+      location.reload();
+    } else {
+      alert(data.message || 'Failed to apply discount.');
+    }
+  })
+  .catch(err => alert('Error applying discount: ' + err))
+  .finally(() => {
+    btn.disabled = false;
+    btn.innerHTML = `<i data-lucide="percent" class="w-4 h-4"></i><span>Apply Discount</span>`;
+    if (window.lucide) lucide.createIcons();
+  });
+}
+
+// Mark order job as Complete / Finished (Staff and Admin)
+function markJobComplete(invoiceNo) {
+  if (!confirm(`Mark job and service for invoice ${invoiceNo} as Completed?`)) return;
+
+  fetch('/api/order/complete', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ invoice_no: invoiceNo })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === 'success') {
+      alert(`Job for ${invoiceNo} marked as complete.`);
+      location.reload();
+    } else {
+      alert(data.message);
+    }
+  })
+  .catch(err => alert("Error updating job: " + err));
+}
+
+// Archive completed order (Admin Only)
+function archiveOrder(invoiceNo) {
+  if (!confirm(`Move order ${invoiceNo} to the Archive?\n\nIt will be moved out of active orders and preserved in the Admin Archive.`)) return;
+
+  fetch('/api/order/archive', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ invoice_no: invoiceNo })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === 'success') {
+      alert(`Order ${invoiceNo} archived successfully.`);
+      location.reload();
+    } else {
+      alert(data.message);
+    }
+  })
+  .catch(err => alert("Error archiving order: " + err));
+}
+
+// Restore archived order (Admin Only)
+function restoreOrder(invoiceNo) {
+  if (!confirm(`Restore order ${invoiceNo} back to active orders list?`)) return;
+
+  fetch('/api/order/restore', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ invoice_no: invoiceNo })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === 'success') {
+      alert(`Order ${invoiceNo} restored successfully.`);
+      location.reload();
+    } else {
+      alert(data.message);
+    }
+  })
+  .catch(err => alert("Error restoring order: " + err));
+}
+
+// Delete permanently from database (Admin Only)
+function deletePermanently(invoiceNo) {
+  const confirmed = confirm(`⚠️ WARNING: Are you sure you want to PERMANENTLY DELETE order ${invoiceNo}?\n\nThis will remove it completely from the database along with all linked line items. This action CANNOT be undone!`);
+  if (!confirmed) return;
+
+  fetch('/api/order/delete_permanently', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ invoice_no: invoiceNo })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === 'success') {
+      alert(`Order ${invoiceNo} was permanently removed from the database.`);
+      location.reload();
+    } else {
+      alert(data.message);
+    }
+  })
+  .catch(err => alert("Error deleting order: " + err));
+}
+
+// View Custom Order Breakdown
+function viewCustomDetails(invoiceNo) {
+  fetch(`/api/order/${invoiceNo}`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.order) return alert('Order details not found');
+      const order = data.order;
+      const details = order.custom_details || {};
+
+      document.getElementById('custModalInvoice').innerText = `${order.invoice_no} (${order.contact_person})`;
+      
+      let html = `<div class="bg-purple-50/70 p-3 rounded-xl border border-purple-200/80 mb-3">
+        <p class="font-bold text-purple-900 text-sm">${order.casket_name}</p>
+        <p class="text-purple-700 text-[11px]">Deceased: <strong>${order.deceased_name || 'N/A'}</strong> • Contact: <strong>${order.contact_number || 'N/A'}</strong></p>
+      </div>`;
+
+      html += `<div class="space-y-2">`;
+      
+      if (details.casket) {
+        html += `<div class="p-2.5 rounded-lg border border-slate-200 bg-slate-50 flex justify-between">
+          <span><strong>⚰️ Casket:</strong> ${details.casket.name || 'Custom Casket'}</span>
+          <span class="font-bold text-amber-700">₱${Number(details.casket.price || 0).toLocaleString()}</span>
+        </div>`;
+      }
+
+      if (details.flowers) {
+        html += `<div class="p-2.5 rounded-lg border border-slate-200 bg-slate-50 flex justify-between">
+          <span><strong>🌸 Flowers:</strong> ${escapeHtml(details.flowers.name || 'Custom Flowers')}</span>
+          <span class="font-bold text-amber-700">₱${Number(details.flowers.price || 0).toLocaleString()}</span>
+        </div>`;
+      }
+
+      if (details.lights) {
+        html += `<div class="p-2.5 rounded-lg border border-slate-200 bg-slate-50 flex justify-between">
+          <span><strong>💡 Lights & Vigil:</strong> ${escapeHtml(details.lights.name || 'Custom Lights')}</span>
+          <span class="font-bold text-amber-700">₱${Number(details.lights.price || 0).toLocaleString()}</span>
+        </div>`;
+      }
+
+      if (details.chapel) {
+        html += `<div class="p-2.5 rounded-lg border border-slate-200 bg-slate-50 flex justify-between">
+          <span><strong>🏛️ Chapel / Venue:</strong> ${escapeHtml(details.chapel.name || 'Custom Setup')}</span>
+          <span class="font-bold text-amber-700">₱${Number(details.chapel.price || 0).toLocaleString()}</span>
+        </div>`;
+      }
+
+      if (details.embalming) {
+        html += `<div class="p-2.5 rounded-lg border border-slate-200 bg-slate-50 flex justify-between">
+          <span><strong>🕊️ Embalming & Care:</strong> ${escapeHtml(details.embalming.name || 'Standard Care')}</span>
+          <span class="font-bold text-amber-700">₱${Number(details.embalming.price || 0).toLocaleString()}</span>
+        </div>`;
+      }
+
+      if (details.hearse) {
+        html += `<div class="p-2.5 rounded-lg border border-slate-200 bg-slate-50 flex justify-between">
+          <span><strong>🚗 Funeral Hearse:</strong> ${escapeHtml(details.hearse.name || 'Standard Hearse')}</span>
+          <span class="font-bold text-amber-700">₱${Number(details.hearse.price || 0).toLocaleString()}</span>
+        </div>`;
+      }
+
+      if (order.addons && order.addons.length > 0) {
+        html += `<div class="pt-2">
+          <p class="font-bold text-slate-700 uppercase text-[10px] mb-1">Service Add-Ons & Extras:</p>`;
+        order.addons.forEach(a => {
+          html += `<div class="p-2 rounded-lg border border-slate-100 bg-white flex justify-between mb-1">
+            <span>• ${escapeHtml(a.addon_name || a.name || '')}</span>
+            <span class="font-semibold text-slate-700">+₱${Number(a.addon_price || a.price || 0).toLocaleString()}</span>
+          </div>`;
+        });
+        html += `</div>`;
+      }
+
+      html += `<div class="pt-3 border-t border-slate-200 flex justify-between text-sm font-bold">
+        <span>Total Contract Amount:</span>
+        <span class="text-amber-700 font-black">₱${Number(order.total_amount).toLocaleString()}</span>
+      </div>`;
+
+      html += `</div>`;
+
+      document.getElementById('customModalContent').innerHTML = html;
+      document.getElementById('customModal').classList.remove('hidden');
+      document.getElementById('customModal').classList.add('flex');
+    })
+    .catch(err => alert("Error fetching details: " + err));
+}
+
+function closeCustomModal() {
+  document.getElementById('customModal').classList.add('hidden');
+  document.getElementById('customModal').classList.remove('flex');
+}
+
+// Print Receipt with Peso (₱) Currency
+function printReceipt(invoiceNo, contactPerson, deceasedName, contactNumber, pkgName, totalAmt, downPayment, remainingBal, status, dateProcessed, orderType) {
+  const printWin = window.open('', '', 'width=750,height=800');
+  const total = Number(totalAmt || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+  const dp = Number(downPayment || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+  const bal = Number(remainingBal || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+  const typeLabel = orderType === 'Custom' ? 'Custom Tailored Order' : 'Standard Funeral Package';
+
+  printWin.document.write(`
+    <html>
+      <head>
+        <title>Receipt - ${invoiceNo}</title>
+        <style>
+          body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 40px; color: #1e293b; line-height: 1.5; }
+          .receipt-box { max-width: 600px; margin: auto; border: 2px solid #eab308; border-radius: 12px; overflow: hidden; }
+          .header { background: #000; color: #fff; padding: 25px; text-align: center; }
+          .header h1 { margin: 0; color: #eab308; font-size: 24px; letter-spacing: 1px; }
+          .header p { margin: 4px 0 0 0; color: #cbd5e1; font-size: 13px; }
+          .content { padding: 30px; }
+          .meta-table, .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          .meta-table td { padding: 6px 0; font-size: 13px; }
+          .meta-label { color: #64748b; font-weight: 600; width: 130px; }
+          .items-table th { background: #f8fafc; border-bottom: 2px solid #e2e8f0; text-align: left; padding: 10px; font-size: 12px; text-transform: uppercase; color: #475569; }
+          .items-table td { padding: 12px 10px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+          .total-row td { font-weight: bold; border-top: 2px solid #cbd5e1; font-size: 15px; }
+          .balance-box { background: #fefce8; border: 1px solid #fef08a; padding: 15px; border-radius: 8px; margin-top: 15px; display: flex; justify-content: space-between; align-items: center; }
+          .footer { text-align: center; font-size: 11px; color: #94a3b8; margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 15px; }
+          @media print {
+            body { padding: 0; }
+            .receipt-box { border: 1px solid #000; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="receipt-box">
+          <div class="header">
+            <h1>RebongSancon Funeral Services</h1>
+            <p>Official Transaction Invoice & Payment Receipt</p>
+          </div>
+          <div class="content">
+            <table class="meta-table">
+              <tr>
+                <td class="meta-label">Invoice Number:</td>
+                <td><strong style="color:#b45309; font-size:15px;">${invoiceNo}</strong></td>
+                <td class="meta-label">Date:</td>
+                <td><strong>${dateProcessed}</strong></td>
+              </tr>
+              <tr>
+                <td class="meta-label">Client Name:</td>
+                <td><strong>${contactPerson}</strong></td>
+                <td class="meta-label">Contact No:</td>
+                <td><strong>${contactNumber || '--'}</strong></td>
+              </tr>
+              <tr>
+                <td class="meta-label">Deceased Name:</td>
+                <td><strong style="color:#0f172a;">${deceasedName || 'Memorial Client'}</strong></td>
+                <td class="meta-label">Order Type:</td>
+                <td><strong>${typeLabel}</strong></td>
+              </tr>
+            </table>
+
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th>Description / Funeral Service</th>
+                  <th style="text-align:right;">Amount (₱)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>${pkgName}</strong><br><small style="color:#64748b;">${typeLabel} Agreement</small></td>
+                  <td style="text-align:right; font-weight:600;">₱${total}</td>
+                </tr>
+                <tr class="total-row">
+                  <td>Total Contract Amount:</td>
+                  <td style="text-align:right; color:#0f172a;">₱${total}</td>
+                </tr>
+                <tr>
+                  <td style="color:#047857; font-weight:600;">Down Payment / Deposit Paid:</td>
+                  <td style="text-align:right; color:#047857; font-weight:700;">-₱${dp}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="balance-box">
+              <span style="font-weight:700; color:#854d0e; text-transform:uppercase; font-size:12px;">Remaining Balance:</span>
+              <span style="font-size:18px; font-weight:900; color:#713f12;">₱${bal}</span>
+            </div>
+
+            <p style="font-size:12px; color:#475569; margin-top:20px;">
+              <strong>Payment Status:</strong> ${status}
+            </p>
+
+            <div class="footer">
+              Thank you for trusting RebongSancon Funeral Services.<br>
+              Laguna University Capstone • Group 15
+            </div>
+          </div>
+        </div>
+      </body>
+    </html>
+  `);
+  printWin.document.close();
+  printWin.focus();
+  setTimeout(() => {
+    printWin.print();
+  }, 350);
+}
+
+function sendReceipt(invoiceNo) {
+  const email = prompt("Enter customer email address for invoice " + invoiceNo + ":");
+  if (email) {
+    fetch('/api/send_receipt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ invoice_no: invoiceNo, email: email })
+    })
+    .then(res => res.json())
+    .then(data => alert(data.message))
+    .catch(err => alert("Error sending receipt."));
+  }
+}
+</script>
+{% endblock %}

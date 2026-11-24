@@ -1,31 +1,32 @@
 /*
  =========================================================================================
-  RebongSancon Funeral Services - Smart QR Scanner ESP32 Gateway
+  RebongSancon Funeral Services - Smart QR Scanner ESP32 Gateway (Firebase Cloud HTTPS)
   Laguna University Capstone - Group 15 (Pascual, Pejas, Pineda)
  =========================================================================================
-  
+
   Features:
   - Connects to Wi-Fi
   - Reads QR Codes via Serial/UART from GM65, Waveshare Barcode Scanner, Grow, or USB-Serial
-  - Can also be tested by typing QR codes into the Arduino Serial Monitor (115200 baud)
-  - Sends scanned package code via HTTP POST to Flask API: /api/pos/scan
-  - Synchronizes with Firebase Firestore:
-      -> The server receives the scan and updates Firestore collection `esp32_active_scan/latest`
-      -> The mobile app scanner scans unique QR codes and queries Firestore `caskets/{casket_code}`
+  - Sends scanned package code via HTTPS POST to Firebase Cloud:
+      https://<YOUR_PROJECT_ID>.web.app/api/pos/scan
+  - Authenticates with X-API-Key header matching Firebase Secret MOBILE_API_KEY
   - Visual & Sound Feedback: Built-in LED (GPIO 2) and optional Buzzer (GPIO 4)
  =========================================================================================
 */
 
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 
 // 1. Wi-Fi Configuration (Replace with your local Wi-Fi credentials)
 const char* ssid = "YOUR_WIFI_SSID";
 const char* password = "YOUR_WIFI_PASSWORD";
 
-// 2. Server Configuration (Replace with the IP address of your Flask server)
-// e.g., "http://192.168.1.100:5000/api/pos/scan"
-const char* serverEndpoint = "http://192.168.1.50:5000/api/pos/scan";
+// 2. Firebase Cloud Server Configuration
+// Replace <PROJECT_ID> with your deployed Firebase Hosting domain (e.g., rebongsancondb)
+// and set apiKey to the exact value provisioned via `firebase functions:secrets:set MOBILE_API_KEY`
+const char* serverEndpoint = "https://rebongsancondb.web.app/api/pos/scan";
+const char* apiKey = "REPLACE_WITH_YOUR_MOBILE_API_KEY";
 
 // 3. Pin Assignments
 #define LED_PIN 2        // Built-in Blue LED on most ESP32 Dev Boards
@@ -33,26 +34,24 @@ const char* serverEndpoint = "http://192.168.1.50:5000/api/pos/scan";
 #define RXD2 16          // Hardware Serial2 RX pin for GM65 / Barcode reader
 #define TXD2 17          // Hardware Serial2 TX pin for GM65 / Barcode reader
 
-// Hardware Serial for external QR Scanner Module (GM65 / Waveshare / Grow)
 HardwareSerial qrSerial(2);
 
 void setup() {
   Serial.begin(115200);
   delay(1000);
-  
+
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, LOW);
-  
+
   if (BUZZER_PIN != -1) {
     pinMode(BUZZER_PIN, OUTPUT);
     digitalWrite(BUZZER_PIN, LOW);
   }
 
-  // Initialize Hardware Serial 2 for QR Module (9600 baud is standard for GM65/Waveshare)
   qrSerial.begin(9600, SERIAL_8N1, RXD2, TXD2);
 
   Serial.println("\n=======================================================");
-  Serial.println(" RebongSancon Funeral Services - ESP32 Smart QR Gateway");
+  Serial.println(" RebongSancon Funeral Services - ESP32 Cloud QR Gateway");
   Serial.println("=======================================================");
   Serial.print("Connecting to Wi-Fi: ");
   Serial.println(ssid);
@@ -64,7 +63,7 @@ void setup() {
   while (WiFi.status() != WL_CONNECTED && attempts < 25) {
     delay(500);
     Serial.print(".");
-    digitalWrite(LED_PIN, !digitalRead(LED_PIN)); // Blink while connecting
+    digitalWrite(LED_PIN, !digitalRead(LED_PIN));
     attempts++;
   }
 
@@ -73,11 +72,12 @@ void setup() {
     Serial.println("\n[SUCCESS] Wi-Fi Connected!");
     Serial.print("ESP32 IP Address: ");
     Serial.println(WiFi.localIP());
+    Serial.print("Cloud Endpoint  : ");
+    Serial.println(serverEndpoint);
     beepSuccess();
   } else {
     digitalWrite(LED_PIN, LOW);
     Serial.println("\n[WARNING] Wi-Fi not connected. Check SSID/Password.");
-    Serial.println("You can still test offline by typing QR codes into the Serial Monitor.");
   }
 
   Serial.println("\nReady to scan QR Codes!");
@@ -86,14 +86,12 @@ void setup() {
 }
 
 void loop() {
-  // Check if Wi-Fi disconnected and attempt reconnection
   if (WiFi.status() != WL_CONNECTED) {
     digitalWrite(LED_PIN, LOW);
   } else {
     digitalWrite(LED_PIN, HIGH);
   }
 
-  // 1. Read from external Hardware Serial QR Scanner Module (GM65 / Waveshare)
   if (qrSerial.available()) {
     String scannedCode = qrSerial.readStringUntil('\r');
     scannedCode.trim();
@@ -104,7 +102,6 @@ void loop() {
     }
   }
 
-  // 2. Read from Serial Monitor (for testing / manual input)
   if (Serial.available()) {
     String manualCode = Serial.readStringUntil('\n');
     manualCode.trim();
@@ -129,14 +126,24 @@ void handleScannedCode(String qrCode) {
     return;
   }
 
-  HTTPClient http;
-  http.begin(serverEndpoint);
-  http.addHeader("Content-Type", "application/json");
+  WiFiClientSecure client;
+  // For production hardening, replace setInsecure() with client.setCACert(GOOGLE_TRUST_SERVICES_ROOT_CA)
+  client.setInsecure();
 
-  // Construct JSON payload matching the Flask endpoint
+  HTTPClient http;
+  if (!http.begin(client, serverEndpoint)) {
+    Serial.println("[ERROR] Failed to initialize HTTPS connection.");
+    beepError();
+    return;
+  }
+
+  http.setTimeout(10000);
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("X-API-Key", apiKey);
+
   String jsonPayload = "{\"qrCode\":\"" + qrCode + "\"}";
 
-  Serial.print("Sending POST to: ");
+  Serial.print("Sending HTTPS POST to: ");
   Serial.println(serverEndpoint);
   Serial.print("Payload: ");
   Serial.println(jsonPayload);
@@ -145,19 +152,19 @@ void handleScannedCode(String qrCode) {
 
   if (httpResponseCode > 0) {
     String response = http.getString();
-    Serial.print("[HTTP ");
+    Serial.print("[HTTPS ");
     Serial.print(httpResponseCode);
-    Serial.println("] Response from Server:");
+    Serial.println("] Response from Firebase Cloud:");
     Serial.println(response);
 
     if (httpResponseCode == 200 || httpResponseCode == 201) {
       beepSuccess();
-      Serial.println("[SUCCESS] Scanned package synced to Flask and Firebase Firestore!");
+      Serial.println("[SUCCESS] Scanned package synced to Firebase Cloud & Firestore!");
     } else {
       beepError();
     }
   } else {
-    Serial.print("[ERROR] HTTP POST failed, error: ");
+    Serial.print("[ERROR] HTTPS POST failed, error: ");
     Serial.println(http.errorToString(httpResponseCode).c_str());
     beepError();
   }
@@ -165,7 +172,6 @@ void handleScannedCode(String qrCode) {
   http.end();
 }
 
-// Visual & Audio Indicator Helpers
 void beepScan() {
   digitalWrite(LED_PIN, LOW);
   if (BUZZER_PIN != -1) {
@@ -199,4 +205,3 @@ void beepError() {
     }
   }
 }
-

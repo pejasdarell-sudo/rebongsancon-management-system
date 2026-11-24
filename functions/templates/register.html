@@ -1,0 +1,605 @@
+{% extends 'base.html' %}
+{% block title %}User Management & Email Notification Alerts | Admin{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-8">
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2.5">
+        <i data-lucide="users" class="w-7 h-7 text-yellow-500"></i>
+        Staff & Admin Management • Email Alerts Hub
+      </h1>
+      <p class="text-xs text-slate-500 mt-1">
+        Manage employee emails, assign administrator accounts, and configure automated attendance notifications.
+      </p>
+    </div>
+
+    <!-- Active Recipients Badge Banner -->
+    <div class="flex items-center gap-2 bg-amber-50 border border-amber-200 px-3.5 py-1.5 rounded-xl text-xs text-amber-900 font-semibold shadow-sm">
+      <i data-lucide="bell" class="w-4 h-4 text-amber-600 animate-pulse"></i>
+      <span>Alerts Sent To: <strong>{{ admin_emails | join(', ') if admin_emails else 'Not Configured' }}</strong></span>
+    </div>
+  </div>
+
+  <!-- Main Grid: Registration Form + Users Table -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+    
+    <!-- Account Creation Form (5 Cols) -->
+    <div class="lg:col-span-5 bg-white p-7 rounded-2xl shadow-sm border border-slate-200">
+      <div class="flex items-center gap-2 pb-4 mb-5 border-b border-slate-100">
+        <div class="p-2 bg-yellow-500/10 text-yellow-600 rounded-xl">
+          <i data-lucide="user-plus" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h2 class="text-base font-bold text-slate-800">New Account Registration</h2>
+          <p class="text-[11px] text-slate-400">Add an employee or administrator to the system</p>
+        </div>
+      </div>
+
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <div class="p-3 mb-4 rounded-xl text-xs font-semibold bg-yellow-50 text-yellow-800 border border-yellow-200 flex items-center gap-2">
+            <i data-lucide="info" class="w-4 h-4 text-yellow-600 shrink-0"></i>
+            <span>{{ messages[0] }}</span>
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <form method="POST" action="/register" class="space-y-4 text-xs">
+        <div>
+          <label class="block font-bold text-slate-700 uppercase text-[11px] mb-1.5">Full Name *</label>
+          <input
+            type="text"
+            name="full_name"
+            placeholder="e.g. Juan Dela Cruz"
+            required
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:bg-white focus:ring-2 focus:ring-yellow-500 transition-all font-medium text-slate-800"
+          />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-700 uppercase text-[11px] mb-1.5">Email Address *</label>
+            <input
+              type="email"
+              name="email"
+              placeholder="employee@gmail.com"
+              required
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:bg-white focus:ring-2 focus:ring-yellow-500 transition-all text-slate-800"
+            />
+          </div>
+
+          <div>
+            <label class="block font-bold text-slate-700 uppercase text-[11px] mb-1.5">Mobile Number *</label>
+            <input
+              type="tel"
+              name="contact_no"
+              placeholder="09123456789"
+              maxlength="11"
+              pattern="[0-9]{11}"
+              oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11);"
+              required
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:bg-white focus:ring-2 focus:ring-yellow-500 transition-all font-mono text-slate-800"
+            />
+          </div>
+        </div>
+
+        <div class="pt-2 border-t border-slate-100">
+          <label class="block font-bold text-slate-700 uppercase text-[11px] mb-1.5">Username *</label>
+          <input
+            type="text"
+            name="username"
+            placeholder="System Login Username"
+            required
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:bg-white focus:ring-2 focus:ring-yellow-500 transition-all font-medium text-slate-800"
+          />
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 uppercase text-[11px] mb-1.5">Password *</label>
+          <input
+            type="password"
+            name="password"
+            placeholder="Assign Initial Password"
+            required
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:bg-white focus:ring-2 focus:ring-yellow-500 transition-all text-slate-800"
+          />
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 uppercase text-[11px] mb-1.5">Account Role</label>
+          <select
+            name="role"
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:bg-white focus:ring-2 focus:ring-yellow-500 font-semibold text-slate-800 transition-all"
+          >
+            <option value="Staff" selected>Staff (Employee - Dispatches Clock-In/Out Email to Admin)</option>
+            <option value="Admin">Admin (Full Control - Receives Staff Attendance Notifications)</option>
+          </select>
+        </div>
+
+        <button
+          type="submit"
+          class="w-full py-3 bg-black hover:bg-yellow-500 hover:text-black text-white font-bold rounded-xl transition-all shadow-md mt-2 flex items-center justify-center gap-2 border border-yellow-500/30 text-xs uppercase tracking-wider"
+        >
+          <i data-lucide="user-plus" class="w-4 h-4"></i>
+          <span>Create User Account</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- Active Accounts Table (7 Cols) -->
+    <div class="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+        <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+          <i data-lucide="users" class="w-4 h-4 text-yellow-500"></i>
+          <span>Existing Staff & Admin Accounts</span>
+        </h2>
+        <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
+          {{ users | length }} Registered
+        </span>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+            <tr>
+              <th class="px-5 py-3.5">User</th>
+              <th class="px-5 py-3.5">Contact Details</th>
+              <th class="px-5 py-3.5">Role</th>
+              <th class="px-5 py-3.5 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for u in users %}
+            <tr class="hover:bg-slate-50 transition-colors">
+              <td class="px-5 py-4">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-8 h-8 rounded-full {% if u.role == 'Admin' %}bg-black text-yellow-500 border border-yellow-500/40{% else %}bg-slate-100 text-slate-700{% endif %} font-bold flex items-center justify-center text-xs">
+                    {{ (u.username or 'U')[0] | upper }}
+                  </div>
+                  <div>
+                    <span class="font-bold text-slate-800 block text-sm">{{ u.full_name or u.username }}</span>
+                    <span class="text-[11px] font-mono text-slate-400">@{{ u.username }}</span>
+                  </div>
+                </div>
+              </td>
+              <td class="px-5 py-4">
+                <div class="text-slate-800 font-semibold">{{ u.email or '--' }}</div>
+                <div class="text-[11px] text-amber-700 font-mono mt-0.5">{{ u.contact_no or '--' }}</div>
+              </td>
+              <td class="px-5 py-4">
+                {% if u.role == 'Admin' %}
+                  <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-black text-yellow-400 border border-yellow-500/30">
+                    <i data-lucide="shield" class="w-3 h-3 text-yellow-400"></i> Admin
+                  </span>
+                {% else %}
+                  <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                    Staff
+                  </span>
+                {% endif %}
+              </td>
+              <td class="px-5 py-4 text-right">
+                <div class="flex items-center justify-end gap-1.5">
+                  <button
+                    type="button"
+                    data-username="{{ u.username }}"
+                    data-fullname="{{ u.full_name or '' }}"
+                    data-email="{{ u.email or '' }}"
+                    data-contact="{{ u.contact_no or '' }}"
+                    data-role="{{ u.role or 'Staff' }}"
+                    onclick="openEditUser(this)"
+                    class="px-2.5 py-1 text-xs font-bold text-yellow-800 bg-yellow-50 hover:bg-yellow-100 border border-yellow-200 rounded-lg transition-colors flex items-center gap-1"
+                    title="Edit User Email & Details"
+                  >
+                    <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                    <span>Edit</span>
+                  </button>
+                  {% if u.username != session.get('username') %}
+                  <button
+                    type="button"
+                    data-username="{{ u.username }}"
+                    onclick="confirmDeleteUser(this.getAttribute('data-username'))"
+                    class="p-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete User"
+                  >
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                  </button>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="4" class="px-5 py-8 text-center text-slate-400">No users found.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- System Email & Attendance Notification Hub (Configured in System) -->
+  {% if mail_settings %}
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    <div class="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
+      <div class="flex items-center gap-3">
+        <div class="p-2.5 bg-yellow-500/10 text-yellow-600 rounded-xl">
+          <i data-lucide="mail-check" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h2 class="text-base font-bold text-slate-800">Admin Attendance Email Alerts Configuration</h2>
+          <p class="text-xs text-slate-400">Saved dynamically in the system database — not hardcoded</p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onclick="testAdminEmail()"
+        id="btnTestEmail"
+        class="text-xs font-bold px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black rounded-xl transition-all shadow-sm flex items-center gap-1.5 shrink-0"
+      >
+        <i data-lucide="send" class="w-3.5 h-3.5"></i>
+        <span>Send Test Alert to Admin</span>
+      </button>
+    </div>
+
+    <form id="mailSettingsForm" onsubmit="saveMailSettings(event)" class="p-6 space-y-5 text-xs">
+      <div>
+        <label class="block font-bold text-slate-700 uppercase text-[11px] mb-1.5">
+          Dedicated Admin Notification Recipient Email
+        </label>
+        <input
+          type="email"
+          id="setting_admin_notification_email"
+          name="admin_notification_email"
+          value="{{ mail_settings.admin_notification_email or '' }}"
+          placeholder="e.g. admin@gmail.com (Leave blank to use email addresses of all Admin accounts)"
+          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:bg-white focus:ring-2 focus:ring-yellow-500 transition-all text-slate-800"
+        />
+        <p class="text-[11px] text-slate-400 mt-1">
+          When employees clock in or clock out, the alert notification will be automatically delivered to this email (and all registered Admins with valid emails).
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2 border-t border-slate-100">
+        <div>
+          <label class="block font-bold text-slate-700 uppercase text-[11px] mb-1.5">
+            System SMTP Sender Gmail Address
+          </label>
+          <input
+            type="email"
+            id="setting_sender_email"
+            name="sender_email"
+            value="{{ mail_settings.sender_email or '' }}"
+            placeholder="system.rebongsancon@gmail.com"
+            required
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:bg-white focus:ring-2 focus:ring-yellow-500 transition-all font-mono text-slate-800"
+          />
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 uppercase text-[11px] mb-1.5">
+            Gmail 16-Character App Password
+          </label>
+          <input
+            type="password"
+            id="setting_sender_password"
+            name="sender_password"
+            value="{{ mail_settings.sender_password or '' }}"
+            placeholder="xxxx xxxx xxxx xxxx"
+            required
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:bg-white focus:ring-2 focus:ring-yellow-500 transition-all font-mono text-slate-800"
+          />
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 pt-2">
+        <input
+          type="checkbox"
+          id="setting_notifications_enabled"
+          name="notifications_enabled"
+          {% if mail_settings.notifications_enabled %}checked{% endif %}
+          class="w-4 h-4 rounded text-yellow-500 focus:ring-yellow-400"
+        />
+        <label for="setting_notifications_enabled" class="font-bold text-slate-700 cursor-pointer">
+          Enable Automated Staff Clock-In & Clock-Out Email Notifications to Admin
+        </label>
+      </div>
+
+      <div id="settingsFeedback" class="hidden p-3 rounded-xl text-xs font-semibold"></div>
+
+      <div class="pt-2 flex justify-end">
+        <button
+          type="submit"
+          id="btnSaveSettings"
+          class="px-6 py-2.5 bg-black hover:bg-yellow-500 hover:text-black text-white font-bold rounded-xl transition-all shadow-md flex items-center gap-2 border border-yellow-500/30 uppercase tracking-wider text-[11px]"
+        >
+          <i data-lucide="check" class="w-4 h-4"></i>
+          <span>Save System Email Settings</span>
+        </button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Edit User Modal -->
+<div id="editUserModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+  <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden transform transition-all">
+    <div class="p-5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <div class="p-2 bg-yellow-500/10 text-yellow-600 rounded-xl">
+          <i data-lucide="edit-3" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-slate-800">Edit User Account</h3>
+          <p class="text-[11px] text-slate-400">Update employee email and profile details</p>
+        </div>
+      </div>
+      <button type="button" onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <form id="editUserForm" onsubmit="submitEditUser(event)" class="p-6 space-y-4 text-xs">
+      <div>
+        <label class="block font-bold text-slate-700 uppercase text-[11px] mb-1">Username</label>
+        <input
+          type="text"
+          id="edit_username"
+          readonly
+          class="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 font-mono text-slate-500 cursor-not-allowed"
+        />
+      </div>
+
+      <div>
+        <label class="block font-bold text-slate-700 uppercase text-[11px] mb-1">Full Name *</label>
+        <input
+          type="text"
+          id="edit_full_name"
+          required
+          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:ring-2 focus:ring-yellow-500 text-slate-800"
+        />
+      </div>
+
+      <div>
+        <label class="block font-bold text-slate-700 uppercase text-[11px] mb-1">Email Address *</label>
+        <input
+          type="email"
+          id="edit_email"
+          required
+          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:ring-2 focus:ring-yellow-500 text-slate-800"
+        />
+        <p class="text-[10px] text-slate-400 mt-1">This email is stored in the system and used for attendance records & notifications.</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block font-bold text-slate-700 uppercase text-[11px] mb-1">Mobile Number</label>
+          <input
+            type="tel"
+            id="edit_contact_no"
+            maxlength="11"
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:ring-2 focus:ring-yellow-500 font-mono text-slate-800"
+          />
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 uppercase text-[11px] mb-1">Role</label>
+          <select
+            id="edit_role"
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:ring-2 focus:ring-yellow-500 font-bold text-slate-800"
+          >
+            <option value="Staff">Staff</option>
+            <option value="Admin">Admin</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="block font-bold text-slate-700 uppercase text-[11px] mb-1">New Password (Leave blank to keep current)</label>
+        <input
+          type="password"
+          id="edit_new_password"
+          placeholder="Min 6 characters"
+          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:ring-2 focus:ring-yellow-500 text-slate-800"
+        />
+      </div>
+
+      <div id="modalFeedback" class="hidden p-2.5 rounded-lg text-xs font-semibold"></div>
+
+      <div class="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
+        <button
+          type="button"
+          onclick="closeEditModal()"
+          class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          id="btnSubmitEdit"
+          class="px-5 py-2 bg-black hover:bg-yellow-500 hover:text-black text-white font-bold rounded-xl transition-all shadow-md flex items-center gap-1.5 border border-yellow-500/30"
+        >
+          <i data-lucide="save" class="w-3.5 h-3.5"></i>
+          <span>Save Changes</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function openEditUser(btn) {
+    const user = {
+      username: btn.getAttribute('data-username') || '',
+      full_name: btn.getAttribute('data-fullname') || '',
+      email: btn.getAttribute('data-email') || '',
+      contact_no: btn.getAttribute('data-contact') || '',
+      role: btn.getAttribute('data-role') || 'Staff'
+    };
+    openEditModal(user);
+  }
+
+  function openEditModal(user) {
+    document.getElementById('edit_username').value = user.username || '';
+    document.getElementById('edit_full_name').value = user.full_name || '';
+    document.getElementById('edit_email').value = user.email || '';
+    document.getElementById('edit_contact_no').value = user.contact_no || '';
+    document.getElementById('edit_role').value = user.role || 'Staff';
+    document.getElementById('edit_new_password').value = '';
+    
+    const feedback = document.getElementById('modalFeedback');
+    if (feedback) feedback.classList.add('hidden');
+    
+    document.getElementById('editUserModal').classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function closeEditModal() {
+    document.getElementById('editUserModal').classList.add('hidden');
+  }
+
+  async function submitEditUser(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnSubmitEdit');
+    const feedback = document.getElementById('modalFeedback');
+
+    btn.disabled = true;
+    btn.innerHTML = `<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Saving...`;
+    lucide.createIcons();
+
+    const payload = {
+      username: document.getElementById('edit_username').value.trim(),
+      full_name: document.getElementById('edit_full_name').value.trim(),
+      email: document.getElementById('edit_email').value.trim(),
+      contact_no: document.getElementById('edit_contact_no').value.trim(),
+      role: document.getElementById('edit_role').value,
+      new_password: document.getElementById('edit_new_password').value.trim()
+    };
+
+    try {
+      const res = await fetch('/api/users/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      feedback.classList.remove('hidden', 'bg-red-50', 'text-red-800', 'bg-emerald-50', 'text-emerald-800');
+      if (res.ok && data.status === 'success') {
+        feedback.classList.add('bg-emerald-50', 'text-emerald-800');
+        feedback.textContent = '✔ ' + (data.message || 'Updated successfully.');
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        feedback.classList.add('bg-red-50', 'text-red-800');
+        feedback.textContent = '✖ ' + (data.message || 'Failed to update user.');
+      }
+    } catch (err) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add('bg-red-50', 'text-red-800');
+      feedback.textContent = '✖ Network error saving user.';
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = `<i data-lucide="save" class="w-3.5 h-3.5"></i> Save Changes`;
+      lucide.createIcons();
+    }
+  }
+
+  async function confirmDeleteUser(username) {
+    if (!confirm(`Are you sure you want to permanently remove user account '@${username}'?`)) return;
+
+    try {
+      const res = await fetch('/api/users/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username })
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        alert('✔ ' + data.message);
+        window.location.reload();
+      } else {
+        alert('✖ ' + data.message);
+      }
+    } catch (err) {
+      alert('✖ Failed to delete user.');
+    }
+  }
+
+  async function saveMailSettings(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnSaveSettings');
+    const feedback = document.getElementById('settingsFeedback');
+    
+    btn.disabled = true;
+    btn.innerHTML = `<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Saving...`;
+    lucide.createIcons();
+
+    const payload = {
+      admin_notification_email: document.getElementById('setting_admin_notification_email').value.trim(),
+      sender_email: document.getElementById('setting_sender_email').value.trim(),
+      sender_password: document.getElementById('setting_sender_password').value.trim(),
+      notifications_enabled: document.getElementById('setting_notifications_enabled').checked
+    };
+
+    try {
+      const res = await fetch('/api/settings/mail', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      feedback.classList.remove('hidden', 'bg-red-50', 'text-red-800', 'border-red-200', 'bg-emerald-50', 'text-emerald-800', 'border-emerald-200');
+      if (res.ok && data.status === 'success') {
+        feedback.classList.add('bg-emerald-50', 'text-emerald-800', 'border', 'border-emerald-200');
+        feedback.textContent = '✔ ' + (data.message || 'Email settings saved successfully.');
+        setTimeout(() => window.location.reload(), 1200);
+      } else {
+        feedback.classList.add('bg-red-50', 'text-red-800', 'border', 'border-red-200');
+        feedback.textContent = '✖ ' + (data.message || 'Failed to save settings.');
+      }
+    } catch (err) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add('bg-red-50', 'text-red-800', 'border', 'border-red-200');
+      feedback.textContent = '✖ Network error saving email settings.';
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i> Save System Email Settings`;
+      lucide.createIcons();
+    }
+  }
+
+  async function testAdminEmail() {
+    const btn = document.getElementById('btnTestEmail');
+    btn.disabled = true;
+    btn.innerHTML = `<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Sending Test...`;
+    lucide.createIcons();
+
+    try {
+      const res = await fetch('/api/settings/test_email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        alert('✔ Success: ' + data.message);
+      } else {
+        alert('✖ Test Failed: ' + data.message);
+      }
+    } catch (err) {
+      alert('✖ Failed to contact test email endpoint.');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = `<i data-lucide="send" class="w-3.5 h-3.5"></i> Send Test Alert to Admin`;
+      lucide.createIcons();
+    }
+  }
+</script>
+{% endblock %}

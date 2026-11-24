@@ -1,0 +1,92 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // 1. SENSITIVE OPERATIONAL COLLECTIONS (Server Admin SDK ONLY)
+    //    Protected from direct browser / client SDK reads and tampering.
+    // -------------------------------------------------------------------------
+    match /users/{userId} {
+      allow read, write: if false;
+    }
+
+    match /orders/{invoiceNo} {
+      allow read, write: if false;
+    }
+
+    match /reservations/{resCode} {
+      allow read, write: if false;
+    }
+
+    match /staff_attendance/{attId} {
+      allow read, write: if false;
+    }
+
+    match /esp32_scan_logs/{logId} {
+      allow read, write: if false;
+    }
+
+    match /esp32_display_qr_logs/{logId} {
+      allow read, write: if false;
+    }
+
+    // Protect mail_settings (contains SMTP sender credentials)
+    match /settings/mail_settings {
+      allow read, write: if false;
+    }
+
+    // Public showroom billboard banner URL (read-only to clients)
+    match /settings/billboard {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /settings/{settingId} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. PUBLIC SHOWROOM & MOBILE SCANNER CATALOG (Read-Only for Clients)
+    //    Allows Android apps (com.rebongsancon.app / com.pejas.rebongsancon)
+    //    to look up package details when scanning QR codes.
+    // -------------------------------------------------------------------------
+    match /caskets/{casketCode} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. HARDWARE / MOBILE QR SYNC DOCUMENTS
+    //    TODO: Tighten write access to `request.auth != null` once Firebase Auth
+    //    (e.g., Anonymous Auth or Email/Password) is active in the Android app.
+    // -------------------------------------------------------------------------
+    match /esp32_active_scan/latest {
+      allow read: if true;
+      allow create, update: if
+        request.resource.data.keys().hasAny(['casket_code', 'qr_code'])
+        && (
+          !('casket_code' in request.resource.data)
+          || (request.resource.data.casket_code is string && request.resource.data.casket_code.size() <= 50)
+        )
+        && (
+          !('qr_code' in request.resource.data)
+          || (request.resource.data.qr_code is string && request.resource.data.qr_code.size() <= 50)
+        );
+      allow delete: if false;
+    }
+
+    match /esp32_display_qr/current {
+      allow read: if true;
+      // Allow ESP32 to acknowledge hardware display status fields only
+      allow update: if request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['displayed_on_hardware', 'hardware_ip', 'hardware_device', 'hardware_ack_at']);
+      allow create, delete: if false;
+    }
+
+    // Default deny for any other collection
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

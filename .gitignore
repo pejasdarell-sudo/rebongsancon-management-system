@@ -1,0 +1,32 @@
+# Secrets & Local Credentials (NEVER commit)
+serviceAccountKey.json
+**/serviceAccountKey.json
+config.json
+**/config.json
+.env
+.env.*
+*.pem
+*.key
+
+# Python & Virtual Environments
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+functions/venv/
+*.egg-info/
+
+# Firebase CLI & Emulator Artifacts
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+
+# OS & Editor Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
