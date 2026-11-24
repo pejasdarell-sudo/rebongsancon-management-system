@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+{% block title %}Chapel &amp; Vigil Reservations | RebongSancon{% endblock %}
+{% block breadcrumb %}Reservations{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2.5">
+        <i data-lucide="calendar-check-2" class="w-7 h-7 text-yellow-500"></i>
+        Chapel &amp; Vigil Reservations
+      </h1>
+      <p class="text-slate-500 text-xs mt-1 font-medium">Manage all active and upcoming funeral reservations.</p>
+    </div>
+    <div class="flex items-center gap-2 text-xs font-semibold text-slate-500 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm self-start sm:self-auto">
+      <i data-lucide="list" class="w-4 h-4 text-yellow-500"></i>
+      {{ reservations | length }} reservation{{ 's' if (reservations | length) != 1 }} total
+    </div>
+  </div>
+
+  <!-- Reservations Table -->
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    <div class="p-5 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
+      <i data-lucide="calendar-check-2" class="w-4 h-4 text-yellow-500"></i>
+      <h2 class="text-sm font-bold text-slate-800">All Reservations</h2>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-xs">
+        <thead class="bg-slate-50 text-slate-500 font-bold border-b border-slate-200 uppercase tracking-wide text-[11px]">
+          <tr>
+            <th class="px-6 py-4">Deceased</th>
+            <th class="px-6 py-4">Client Contact</th>
+            <th class="px-6 py-4">Chapel / Venue</th>
+            <th class="px-6 py-4">Start Date</th>
+            <th class="px-6 py-4">End Date</th>
+            <th class="px-6 py-4">Status</th>
+            {% if session.get('role') == 'Admin' %}
+            <th class="px-6 py-4">Action</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for res in reservations %}
+          <tr class="hover:bg-slate-50/80 transition-colors group">
+            <td class="px-6 py-4">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-full bg-slate-800 text-yellow-400 font-bold flex items-center justify-center text-[11px] shrink-0">
+                  {{ (res.deceased_name or '?')[0] | upper }}
+                </div>
+                <span class="font-bold text-slate-800">{{ res.deceased_name }}</span>
+              </div>
+            </td>
+            <td class="px-6 py-4">
+              <div class="font-semibold text-slate-700">{{ res.contact_person }}</div>
+              <div class="text-[11px] text-slate-400 font-mono mt-0.5">{{ res.contact_number }}</div>
+            </td>
+            <td class="px-6 py-4">
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 font-bold border border-amber-200 text-[11px]">
+                <i data-lucide="door-open" class="w-3 h-3"></i>
+                {{ res.chapel_room or '—' }}
+              </span>
+            </td>
+            <td class="px-6 py-4 font-semibold text-slate-600 whitespace-nowrap">{{ res.start_date }}</td>
+            <td class="px-6 py-4 font-semibold text-slate-600 whitespace-nowrap">{{ res.end_date }}</td>
+            <td class="px-6 py-4">
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold
+                {% if res.status == 'Active' or res.status == 'Ongoing' %}bg-emerald-100 text-emerald-800 border border-emerald-200
+                {% elif res.status == 'Completed' %}bg-slate-100 text-slate-700 border border-slate-200
+                {% else %}bg-blue-100 text-blue-800 border border-blue-200{% endif %}">
+                {{ res.status }}
+              </span>
+            </td>
+            {% if session.get('role') == 'Admin' %}
+            <td class="px-6 py-4">
+              <button
+                onclick="openVenueModal('{{ res.reservation_code }}', '{{ res.chapel_room | replace("'", "\\'") }}')"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold bg-black text-white hover:bg-yellow-500 hover:text-black rounded-lg transition-all">
+                <i data-lucide="pencil" class="w-3 h-3"></i>
+                Edit Venue
+              </button>
+            </td>
+            {% endif %}
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="{% if session.get('role') == 'Admin' %}7{% else %}6{% endif %}" class="px-6 py-16 text-center">
+              <i data-lucide="calendar-x-2" class="w-12 h-12 mx-auto text-slate-200 mb-3"></i>
+              <p class="text-slate-400 font-medium">No reservations found.</p>
+              <p class="text-xs text-slate-300 mt-1">Reservations created via POS will appear here.</p>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Venue Modal -->
+<div id="venueModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 overflow-hidden">
+    <!-- Modal Header -->
+    <div class="bg-black text-white p-5 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="p-2 bg-yellow-500/20 rounded-xl text-yellow-400">
+          <i data-lucide="door-open" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h2 class="text-sm font-bold text-white">Update Chapel / Venue</h2>
+          <p class="text-[11px] text-gray-400">Assign or change the vigil location</p>
+        </div>
+      </div>
+      <button onclick="closeVenueModal()" class="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="block font-bold text-slate-700 uppercase text-[11px] mb-2 tracking-wide">Select or Type Venue</label>
+        <input
+          type="text"
+          id="venueInput"
+          list="venuesList"
+          placeholder="e.g. Chapel A (St. Peter Suite)"
+          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-yellow-500 outline-none transition-all"
+        />
+        <datalist id="venuesList">
+          <option value="Chapel A (St. Peter Suite)"></option>
+          <option value="Chapel B (St. Paul Suite)"></option>
+          <option value="Chapel C (St. John Suite)"></option>
+          <option value="Main Viewing Hall"></option>
+        </datalist>
+        <p class="text-[11px] text-slate-400 mt-1.5">Type a custom venue name or choose from the suggestions above.</p>
+      </div>
+
+      <div id="venueFeedback" class="hidden text-xs font-semibold p-3 rounded-xl"></div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button
+          onclick="closeVenueModal()"
+          class="px-4 py-2.5 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold text-sm transition-colors">
+          Cancel
+        </button>
+        <button
+          id="btnSaveVenue"
+          onclick="submitVenue()"
+          class="px-6 py-2.5 bg-black hover:bg-yellow-500 hover:text-black text-white font-bold text-sm rounded-xl transition-all shadow-sm flex items-center gap-2">
+          <i data-lucide="check" class="w-4 h-4"></i>
+          Save Venue
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let currentResCode = '';
+
+  function openVenueModal(resCode, currentVenue) {
+    currentResCode = resCode;
+    document.getElementById('venueInput').value = currentVenue;
+    document.getElementById('venueFeedback').classList.add('hidden');
+    const modal = document.getElementById('venueModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    lucide.createIcons();
+    setTimeout(() => document.getElementById('venueInput').focus(), 100);
+  }
+
+  function closeVenueModal() {
+    const modal = document.getElementById('venueModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+
+  // Close on backdrop click
+  document.getElementById('venueModal').addEventListener('click', function(e) {
+    if (e.target === this) closeVenueModal();
+  });
+
+  // Close on ESC
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeVenueModal(); });
+
+  async function submitVenue() {
+    const venue = document.getElementById('venueInput').value.trim();
+    if (!venue) { showToast('Venue name cannot be empty.', 'warning'); return; }
+
+    const btn = document.getElementById('btnSaveVenue');
+    btn.disabled = true;
+    btn.innerHTML = `<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Saving...`;
+    lucide.createIcons();
+
+    try {
+      const res = await fetch('/api/reservation/venue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reservation_code: currentResCode, chapel_room: venue })
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        showToast('Venue updated successfully!', 'success');
+        closeVenueModal();
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        showToast(data.message || 'Failed to update venue.', 'error');
+      }
+    } catch {
+      showToast('Network error. Please try again.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i> Save Venue`;
+      lucide.createIcons();
+    }
+  }
+</script>
+{% endblock %}

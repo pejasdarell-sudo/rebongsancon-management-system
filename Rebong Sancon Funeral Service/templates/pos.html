@@ -1,0 +1,1455 @@
+{% extends 'base.html' %}
+
+{% block title %}Smart POS | RebongSancon{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+  <!-- Page Header & Mode Selector -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2.5">
+        <i data-lucide="scan-line" class="w-7 h-7 text-amber-600"></i>
+        Point of Sale (POS) & Order Registry
+      </h1>
+      <p class="text-xs text-slate-500 mt-1">
+        Process preset funeral packages via ESP32 QR scan, or build custom tailored orders matching client budget and preferences.
+      </p>
+    </div>
+
+    <!-- Mode Selector Tabs: Package vs Custom -->
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-mono font-semibold bg-white border border-slate-200 text-slate-700 shadow-sm">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span>ESP32 Target: <strong class="text-slate-900">{{ esp32_ip or '192.168.1.50' }}</strong></span>
+      </span>
+
+      <div class="flex items-center gap-2 bg-slate-200/80 p-1.5 rounded-2xl border border-slate-300/80 shadow-inner">
+        <button
+          type="button"
+          id="tabBtnPackage"
+          onclick="switchPosMode('package')"
+          class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 bg-white text-slate-900 shadow-sm"
+        >
+          <i data-lucide="package" class="w-4 h-4 text-amber-600"></i>
+          <span>Package Order (ESP32 QR)</span>
+        </button>
+
+        <button
+          type="button"
+          id="tabBtnCustom"
+          onclick="switchPosMode('custom')"
+          class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 text-slate-600 hover:text-slate-900"
+        >
+          <i data-lucide="sliders" class="w-4 h-4 text-purple-600"></i>
+          <span>Custom Order (Build Your Own)</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alert / Status Notice Banner -->
+  <div id="statusNotice" class="hidden p-3 rounded-xl text-xs items-center gap-2 border shadow-sm"></div>
+
+  <!-- ============================================================== -->
+  <!-- 1. PACKAGE ORDER VIEW (ESP32 Smart QR Scanner & Presets)        -->
+  <!-- ============================================================== -->
+  <div id="viewPackageOrder" class="space-y-6">
+    <!-- Smart QR Scanner Hub & Hardware Gateway -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-4">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="p-2.5 bg-amber-50 rounded-xl border border-amber-200/60 text-amber-700">
+            <i data-lucide="qr-code" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="font-bold text-slate-800 text-sm">Smart QR Scanner Hub & Hardware Gateway</h3>
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Firebase Live
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">
+              Listens in real time for package QR scans from your <strong class="text-slate-600">Mobile App</strong> and <strong class="text-slate-600">ESP32 Device</strong>.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Toggle ESP32 / Mobile App Auto-Listener -->
+          <button
+            type="button"
+            id="btnTogglePoll"
+            onclick="toggleAutoPolling()"
+            class="px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 border bg-emerald-50 border-emerald-300 text-emerald-700 shadow-sm transition-all"
+          >
+            <span id="pollIndicator" class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+            <span id="pollText">Firebase Auto-Listener (Active)</span>
+          </button>
+
+          <!-- Sync Once Button -->
+          <button
+            type="button"
+            id="btnSyncOnce"
+            onclick="fetchLatestScan(true)"
+            title="Check buffer"
+            class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-medium flex items-center gap-1.5 transition-colors shadow-sm"
+          >
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-amber-400"></i>
+            <span>Check Firebase Buffer</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Barcode / QR Scanner Input Form (For handheld scanner guns or manual counter entry) -->
+      <div class="pt-2 border-t border-slate-100 flex flex-col md:flex-row items-center gap-3">
+        <form onsubmit="handleManualScan(event)" class="flex-1 w-full flex gap-2">
+          <div class="relative flex-1">
+            <i data-lucide="scan" class="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5"></i>
+            <input
+              type="text"
+              id="manualQrInput"
+              placeholder="Or enter / scan package code directly (e.g. CSK-OAK-01, CSK-MAHOG-02)..."
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3.5 py-2 text-xs focus:ring-2 focus:ring-amber-500 focus:bg-white outline-none transition-all font-mono"
+            />
+          </div>
+          <button
+            type="submit"
+            class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-semibold transition-colors shrink-0 shadow-sm flex items-center gap-1.5"
+          >
+            <i data-lucide="arrow-right-circle" class="w-3.5 h-3.5"></i>
+            <span>Load Package</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Awaiting QR Scan Placeholder State (Shown until a package is scanned) -->
+    <div id="awaitingScanState" class="bg-white rounded-2xl border-2 border-dashed border-amber-300/80 p-10 text-center space-y-5 shadow-sm">
+      <div class="w-20 h-20 mx-auto rounded-3xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shadow-inner relative">
+        <i data-lucide="qr-code" class="w-10 h-10"></i>
+        <span class="absolute -top-1 -right-1 flex h-4 w-4">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-4 w-4 bg-amber-500"></span>
+        </span>
+      </div>
+
+      <div class="max-w-md mx-auto space-y-1.5">
+        <h3 class="text-lg font-black text-slate-800 tracking-tight">Ready for Package QR Scan</h3>
+        <p class="text-xs text-slate-500 leading-relaxed">
+          Scan a package QR code with your <strong class="text-slate-700">Mobile App Camera</strong> (or via the <strong class="text-slate-700">ESP32 Device</strong>). The package specifications, inclusions, and billing summary will appear here automatically via Firebase.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-2xl mx-auto pt-2 text-left">
+        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+          <div class="flex items-center gap-2 text-amber-600 font-bold text-xs">
+            <i data-lucide="smartphone" class="w-4 h-4"></i>
+            <span>Mobile App Camera</span>
+          </div>
+          <p class="text-[11px] text-slate-500">Point mobile app camera at the package QR projected at the ESP32.</p>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+          <div class="flex items-center gap-2 text-amber-600 font-bold text-xs">
+            <i data-lucide="cpu" class="w-4 h-4"></i>
+            <span>ESP32 Gateway</span>
+          </div>
+          <p class="text-[11px] text-slate-500">Synced directly with Firebase Firestore active scan records.</p>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+          <div class="flex items-center gap-2 text-amber-600 font-bold text-xs">
+            <i data-lucide="scan" class="w-4 h-4"></i>
+            <span>Handheld Scanner / Input</span>
+          </div>
+          <p class="text-[11px] text-slate-500">Can also scan with a USB barcode gun or enter package code above.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Package Grid: Scanned Package vs. Pricing & Billing (Revealed ONLY when a package is scanned) -->
+    <div id="scannedPackageContainer" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start hidden">
+      <!-- Left Column: Scanned Item & Add-ons -->
+      <div class="lg:col-span-7 space-y-6">
+        <!-- Scanned Package Card -->
+        <div id="packageCard" class="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm">
+          <div class="bg-gradient-to-r from-slate-900 to-slate-800 p-6 text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <span id="badgeCasketCode" class="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full">
+                  --
+                </span>
+                <span id="txtCategory" class="text-slate-400 text-xs">• Funeral Package</span>
+              </div>
+              <h2 id="txtPackageName" class="text-xl font-bold mt-2 text-white tracking-wide">
+                --
+              </h2>
+            </div>
+
+            <div class="flex flex-col md:items-end gap-2">
+              <div class="text-left md:text-right bg-white/10 md:bg-transparent p-3 md:p-0 rounded-xl">
+                <span class="text-slate-300 text-xs uppercase tracking-wider block font-medium">Base Package Price</span>
+                <span id="txtBasePrice" class="text-2xl font-black text-amber-400">₱0</span>
+              </div>
+              <button
+                type="button"
+                onclick="clearCurrentScan()"
+                class="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition-colors border border-white/15 w-fit"
+              >
+                <i data-lucide="rotate-ccw" class="w-3 h-3"></i>
+                <span>Scan Different Package</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="p-6 space-y-5">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b border-slate-100 text-xs">
+              <div class="flex items-center gap-2 text-slate-600">
+                <i data-lucide="layers" class="w-4 h-4 text-amber-600 shrink-0"></i>
+                <span><strong>Material:</strong> <span id="txtMaterial">--</span></span>
+              </div>
+              <div class="flex items-center gap-2 text-slate-600">
+                <i data-lucide="ruler" class="w-4 h-4 text-amber-600 shrink-0"></i>
+                <span><strong>Dimensions:</strong> <span id="txtDimensions">--</span></span>
+              </div>
+            </div>
+
+            <div>
+              <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-500"></i>
+                Included Funeral Services & Amenities:
+              </h4>
+              <div id="inclusionsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                <!-- Dynamically populated by JS upon QR scan -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add-on Services Checklist -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+            <i data-lucide="heart-handshake" class="w-4 h-4 text-amber-600"></i>
+            Selectable Service Add-Ons & Upgrades
+          </h3>
+
+          <div class="space-y-2.5 text-xs" id="addOnsList">
+            <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-slate-300 bg-white cursor-pointer transition-all">
+              <div class="flex items-center gap-3">
+                <input type="checkbox" data-name="Extra Vigil Day Rental" data-price="2500" onchange="calculateTotals()" class="addon-checkbox rounded text-amber-600 focus:ring-amber-500 h-4 w-4">
+                <span class="font-medium text-slate-800">Extra Vigil Day Rental (Chapel or Home)</span>
+              </div>
+              <span class="font-bold text-amber-700">+₱2,500</span>
+            </label>
+
+            <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-slate-300 bg-white cursor-pointer transition-all">
+              <div class="flex items-center gap-3">
+                <input type="checkbox" data-name="Premium Fresh Floral Wreath" data-price="3500" onchange="calculateTotals()" class="addon-checkbox rounded text-amber-600 focus:ring-amber-500 h-4 w-4">
+                <span class="font-medium text-slate-800">Premium Fresh Floral Wreath Setup</span>
+              </div>
+              <span class="font-bold text-amber-700">+₱3,500</span>
+            </label>
+
+            <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-slate-300 bg-white cursor-pointer transition-all">
+              <div class="flex items-center gap-3">
+                <input type="checkbox" data-name="Extra Family Escort Van" data-price="4000" onchange="calculateTotals()" class="addon-checkbox rounded text-amber-600 focus:ring-amber-500 h-4 w-4">
+                <span class="font-medium text-slate-800">Extra Family Escort Van / Hearse</span>
+              </div>
+              <span class="font-bold text-amber-700">+₱4,000</span>
+            </label>
+
+            <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-slate-300 bg-white cursor-pointer transition-all">
+              <div class="flex items-center gap-3">
+                <input type="checkbox" data-name="Printed Memorial Programs" data-price="1500" onchange="calculateTotals()" class="addon-checkbox rounded text-amber-600 focus:ring-amber-500 h-4 w-4">
+                <span class="font-medium text-slate-800">Printed Memorial Mass Programs (100 pcs)</span>
+              </div>
+              <span class="font-bold text-amber-700">+₱1,500</span>
+            </label>
+
+            <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-slate-300 bg-white cursor-pointer transition-all">
+              <div class="flex items-center gap-3">
+                <input type="checkbox" data-name="Special Embalming Facial Restoration" data-price="5000" onchange="calculateTotals()" class="addon-checkbox rounded text-amber-600 focus:ring-amber-500 h-4 w-4">
+                <span class="font-medium text-slate-800">Special Embalming Facial Restoration</span>
+              </div>
+              <span class="font-bold text-amber-700">+₱5,000</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Package Order Checkout Summary -->
+      <div class="lg:col-span-5 space-y-6 sticky top-6">
+        <div class="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-5">
+          <h3 class="text-base font-bold text-slate-800 pb-3 border-b border-slate-100 flex items-center justify-between">
+            <span class="flex items-center gap-2">
+              <i data-lucide="package-check" class="w-4 h-4 text-amber-600"></i>
+              Package Billing Summary
+            </span>
+            <span class="text-xs text-amber-700 font-semibold bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
+              Preset Order
+            </span>
+          </h3>
+
+          <!-- Client & Deceased Info -->
+          <div class="space-y-2 text-xs">
+            <label class="block font-bold text-slate-500 uppercase text-[11px]">Client / Reservation Info</label>
+            <input
+              type="text"
+              id="deceasedName"
+              placeholder="Deceased Full Name *"
+              maxlength="40"
+              oninput="handleNameInput(this, 'deceasedNameErr')"
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:ring-2 focus:ring-amber-500"
+            />
+            <p id="deceasedNameErr" class="text-[10px] text-red-500 font-semibold hidden"></p>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <input
+                  type="text"
+                  id="contactPerson"
+                  placeholder="Contact Person *"
+                  maxlength="40"
+                  oninput="handleNameInput(this, 'contactPersonErr')"
+                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:ring-2 focus:ring-amber-500"
+                />
+                <p id="contactPersonErr" class="text-[10px] text-red-500 font-semibold hidden"></p>
+              </div>
+              <div>
+                <input
+                  type="tel"
+                  id="contactNumber"
+                  placeholder="Mobile No. (11 digits) *"
+                  maxlength="11"
+                  pattern="[0-9]{11}"
+                  oninput="handleMobileInput(this, 'contactNumberErr')"
+                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:ring-2 focus:ring-amber-500"
+                />
+                <p id="contactNumberErr" class="text-[10px] text-red-500 font-semibold hidden"></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Calculations Breakdown -->
+          <div class="pt-3 border-t border-slate-100 space-y-2.5 text-xs">
+            <div class="flex justify-between text-slate-600">
+              <span>Base Casket & Package:</span>
+              <span id="summaryBasePrice" class="font-semibold">₱85,000</span>
+            </div>
+
+            <div class="flex justify-between text-slate-600">
+              <span>Selected Add-ons Total:</span>
+              <span id="summaryAddOnsTotal" class="font-semibold">+₱0</span>
+            </div>
+
+            <div class="flex justify-between text-slate-700 font-bold pt-1 border-t border-slate-100">
+              <span>Subtotal:</span>
+              <span id="summarySubtotal">₱85,000</span>
+            </div>
+
+            <!-- Custom Discount -->
+            <label class="flex items-center justify-between p-2.5 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-xl transition-colors">
+              <div class="flex items-center gap-2">
+                <span class="font-semibold text-slate-700">Discount (%)</span>
+                <input
+                  type="number"
+                  id="customDiscountInput"
+                  min="0"
+                  max="100"
+                  value="0"
+                  oninput="calculateTotals()"
+                  class="w-16 rounded border border-slate-300 text-amber-600 focus:ring-amber-500 px-2 py-1 font-bold text-center"
+                />
+              </div>
+              <span id="summaryDiscount" class="text-emerald-600 font-bold">₱0</span>
+            </label>
+
+            <div class="flex justify-between items-center text-sm font-black text-slate-900 pt-2 border-t border-slate-200">
+              <span>Total Package Amount:</span>
+              <span id="summaryTotalDue" class="text-lg text-amber-600">₱85,000</span>
+            </div>
+          </div>
+
+          <!-- Down Payment & Remaining Balance (All Peso ₱ signs) -->
+          <div class="pt-3 border-t border-slate-100 space-y-3">
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <label class="block text-[11px] font-bold text-slate-600 uppercase">
+                  Down Payment / Deposit (₱)
+                </label>
+                <span id="dpStatusBadge" class="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                  Auto-compute (50%)
+                </span>
+              </div>
+
+              <!-- Auto-Compute Buttons -->
+              <div class="grid grid-cols-3 gap-1.5 mb-2">
+                <button
+                  type="button"
+                  id="btnDp50"
+                  onclick="setDownPaymentPreset('50')"
+                  class="py-1 px-2 rounded-lg text-[11px] font-bold border border-yellow-500 bg-yellow-50 text-yellow-800 hover:bg-yellow-100 transition-all text-center"
+                >
+                  50% Deposit
+                </button>
+                <button
+                  type="button"
+                  id="btnDp100"
+                  onclick="setDownPaymentPreset('100')"
+                  class="py-1 px-2 rounded-lg text-[11px] font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all text-center"
+                >
+                  100% Full
+                </button>
+                <button
+                  type="button"
+                  id="btnDpCustom"
+                  onclick="setDownPaymentPreset('custom')"
+                  class="py-1 px-2 rounded-lg text-[11px] font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all text-center"
+                >
+                  Custom
+                </button>
+              </div>
+
+              <div class="relative">
+                <span class="absolute left-3 top-2.5 font-bold text-slate-400 text-sm">₱</span>
+                <input
+                  type="number"
+                  id="downPaymentInput"
+                  min="0"
+                  value="0"
+                  oninput="handleCustomDownPaymentInput()"
+                  class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-sm font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Payment Method</label>
+              <select id="paymentMethodSelect" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-amber-500">
+                <option value="Cash">Cash Payment</option>
+                <option value="GCash">GCash QR</option>
+                <option value="Bank Transfer">Bank Transfer (BDO / BPI)</option>
+                <option value="Installment">Installment Agreement</option>
+              </select>
+            </div>
+
+            <div class="p-3.5 bg-amber-50/80 border border-amber-200 rounded-xl flex justify-between items-center text-amber-950">
+              <span class="text-xs font-bold uppercase tracking-wider">Remaining Balance:</span>
+              <span id="summaryRemainingBalance" class="text-lg font-black text-amber-900">₱42,500</span>
+            </div>
+          </div>
+
+          <!-- Submit & Clear Buttons -->
+          <div class="space-y-2 pt-2">
+            <button
+              type="button"
+              id="btnProcessOrder"
+              onclick="processOrder()"
+              class="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-amber-900/10 transition-all"
+            >
+              <i data-lucide="receipt" class="w-4 h-4"></i>
+              <span>Process Package Order & Issue Invoice</span>
+            </button>
+
+            <button
+              type="button"
+              onclick="clearCurrentScan()"
+              class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition-colors"
+            >
+              Clear Order
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- INVENTORY PACKAGES & ESP32 QR PROJECTION DECK                   -->
+    <!-- ============================================================== -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        <div class="flex items-center gap-3">
+          <div class="p-2.5 bg-yellow-500/20 text-yellow-600 rounded-xl border border-yellow-500/30">
+            <i data-lucide="boxes" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="font-bold text-slate-800 text-sm">Inventory Packages &amp; ESP32 QR Projection Deck</h3>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                {{ caskets | length }} Models Available
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">
+              Each package has its own unique QR code formatted for mobile app scanning. Click <strong class="text-slate-600">Project QR</strong> to broadcast to your ESP32 display, or <strong class="text-slate-600">Load in POS</strong> to process immediately.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-mono font-semibold bg-slate-50 border border-slate-200 text-slate-700">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Target: <strong class="text-slate-900">{{ esp32_ip or '192.168.1.50' }}</strong></span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Packages Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for c in caskets %}
+        <div class="bg-slate-50/70 hover:bg-white rounded-2xl border border-slate-200 hover:border-amber-300 hover:shadow-md transition-all p-4 flex flex-col justify-between space-y-3.5 group">
+          
+          <!-- Top: Info + QR Code Preview -->
+          <div class="flex items-start justify-between gap-3">
+            <div class="space-y-1 min-w-0 flex-1">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="bg-black text-yellow-400 font-mono font-bold text-[10px] px-2 py-0.5 rounded-md border border-yellow-500/30">
+                  {{ c.casket_code }}
+                </span>
+                {% if c.stock <= 2 %}
+                  <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-300">
+                    Low Stock: {{ c.stock }}
+                  </span>
+                {% else %}
+                  <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
+                    Stock: {{ c.stock }}
+                  </span>
+                {% endif %}
+              </div>
+              <h4 class="font-bold text-slate-900 text-xs leading-snug line-clamp-2 mt-1">{{ c.name }}</h4>
+              <p class="text-[11px] text-slate-400 truncate">{{ c.category or 'Standard Casket Package' }}</p>
+              <p class="text-sm font-black text-amber-700 mt-1">{{ c.base_price | currency }}</p>
+            </div>
+
+            <!-- QR Code Thumbnail (Click to view full) -->
+            <div class="shrink-0 text-center">
+              <div data-code="{{ c.casket_code }}"
+                   data-name="{{ c.name }}"
+                   data-price="{{ c.base_price | currency }}"
+                   data-qr="{{ c.qr_image_url or ('/static/uploads/qrcodes/' ~ c.casket_code ~ '.png') }}"
+                   onclick="openPosQrPreview(this.dataset.code, this.dataset.name, this.dataset.price, this.dataset.qr)"
+                   class="w-20 h-20 p-1.5 bg-white rounded-xl border border-slate-200 hover:border-amber-400 hover:shadow cursor-pointer transition-all flex items-center justify-center relative group/qr"
+                   title="Click to enlarge &amp; print QR">
+                <img src="{{ c.qr_image_url or ('/static/uploads/qrcodes/' ~ c.casket_code ~ '.png') }}" 
+                     alt="{{ c.casket_code }} QR" 
+                     class="w-full h-full object-contain">
+                <div class="absolute inset-0 bg-black/40 rounded-xl opacity-0 group-hover/qr:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold gap-1">
+                  <i data-lucide="zoom-in" class="w-3.5 h-3.5"></i>
+                </div>
+              </div>
+              <span class="text-[9px] text-slate-400 block mt-1 font-mono">Mobile QR</span>
+            </div>
+          </div>
+
+          <!-- Bottom: Action Buttons -->
+          <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+            <!-- Project to ESP32 Button -->
+            <button
+              type="button"
+              id="btnProject_{{ c.casket_code }}"
+              data-code="{{ c.casket_code }}"
+              data-name="{{ c.name }}"
+              onclick="projectQrToEsp32(this.dataset.code, this.dataset.name)"
+              class="px-2.5 py-2 bg-black hover:bg-yellow-500 hover:text-black text-white text-[11px] font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 border border-yellow-500/20 active:scale-95"
+              title="Send QR data via HTTP POST to ESP32 (/display)"
+            >
+              <i data-lucide="cast" class="w-3.5 h-3.5 text-yellow-400 group-hover:text-black"></i>
+              <span>Project QR</span>
+            </button>
+
+            <!-- Load Directly into POS Button -->
+            <button
+              type="button"
+              data-code="{{ c.casket_code }}"
+              onclick="loadPackageDirectly(this.dataset.code)"
+              class="px-2.5 py-2 bg-amber-500/10 hover:bg-amber-500 text-amber-800 hover:text-black text-[11px] font-bold rounded-xl transition-all border border-amber-300/60 flex items-center justify-center gap-1.5 active:scale-95"
+              title="Load package details directly into POS order view"
+            >
+              <i data-lucide="scan-line" class="w-3.5 h-3.5 text-amber-700 hover:text-black"></i>
+              <span>Load in POS</span>
+            </button>
+          </div>
+
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- 2. CUSTOM ORDER VIEW (Build-Your-Own Tailored Funeral Order)   -->
+  <!-- ============================================================== -->
+  <div id="viewCustomOrder" class="hidden space-y-6">
+    <!-- Custom Order Intro Banner -->
+    <div class="bg-gradient-to-r from-purple-900 via-purple-800 to-indigo-900 rounded-2xl p-6 text-white shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="space-y-1">
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/30 text-purple-200 text-xs font-bold">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i>
+          Tailored Funeral Services
+        </div>
+        <h2 class="text-xl font-bold text-white">Custom Order Builder</h2>
+        <p class="text-xs text-purple-200 max-w-2xl">
+          Pick casket, floral arrangements, vigil lighting, chapel suite, hearse, and amenities individually. Adjust prices and choices according to customer budget or personal preferences.
+        </p>
+      </div>
+
+      <div class="bg-white/10 backdrop-blur-sm p-3.5 rounded-xl border border-white/10 shrink-0 text-center">
+        <span class="text-[10px] uppercase font-bold tracking-wider text-purple-200 block">Current Custom Total</span>
+        <span id="customHeroTotal" class="text-2xl font-black text-amber-300">₱0</span>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <!-- Left Column: Custom Item Selectors (7 Cols) -->
+      <div class="lg:col-span-7 space-y-5">
+
+        <!-- 1. Casket Selection -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+              <span class="w-6 h-6 rounded-lg bg-purple-100 text-purple-800 flex items-center justify-center font-bold text-xs">1</span>
+              <span>Casket Selection</span>
+            </h3>
+            <span class="text-[11px] text-slate-400 font-medium">Pick showroom or custom casket</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+            {% for c in caskets %}
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-purple-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-purple-600 has-[:checked]:bg-purple-50/50 has-[:checked]:ring-1 has-[:checked]:ring-purple-600">
+              <div class="flex items-start justify-between gap-2">
+                <input
+                  type="radio"
+                  name="customCasketChoice"
+                  value="{{ c.casket_code }}"
+                  data-name="{{ c.name }}"
+                  data-price="{{ c.base_price }}"
+                  data-code="{{ c.casket_code }}"
+                  onchange="handleCustomSelectionChange()"
+                  class="text-purple-600 focus:ring-purple-500 mt-0.5"
+                />
+                <span class="font-bold text-purple-900 text-right">{{ c.base_price | currency }}</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1 line-clamp-1">{{ c.name }}</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">{{ c.material or 'Hardwood' }} • Stock: {{ c.stock }}</span>
+            </label>
+            {% endfor %}
+
+            <!-- Client Provided Casket (₱0) -->
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-purple-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-purple-600 has-[:checked]:bg-purple-50/50 has-[:checked]:ring-1 has-[:checked]:ring-purple-600">
+              <div class="flex items-start justify-between gap-2">
+                <input
+                  type="radio"
+                  name="customCasketChoice"
+                  value="CLIENT"
+                  data-name="Client/Family-Provided Casket"
+                  data-price="0"
+                  data-code="CLIENT"
+                  onchange="handleCustomSelectionChange()"
+                  class="text-purple-600 focus:ring-purple-500 mt-0.5"
+                />
+                <span class="font-bold text-emerald-700">₱0 (Free)</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">Client/Family-Provided Casket</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Family provides their own casket</span>
+            </label>
+
+            <!-- Custom Budget Casket -->
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-purple-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-purple-600 has-[:checked]:bg-purple-50/50 has-[:checked]:ring-1 has-[:checked]:ring-purple-600">
+              <div class="flex items-start justify-between gap-2">
+                <input
+                  type="radio"
+                  name="customCasketChoice"
+                  id="radioCustomCasketManual"
+                  value="CUSTOM"
+                  data-name="Custom Specified Casket"
+                  data-price="0"
+                  data-code="CUSTOM"
+                  onchange="handleCustomSelectionChange()"
+                  class="text-purple-600 focus:ring-purple-500 mt-0.5"
+                />
+                <span class="font-bold text-purple-800 text-[11px]">Custom Amount</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">Custom Specified Casket</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Type custom casket name & budget</span>
+            </label>
+          </div>
+
+          <!-- Custom Casket Manual Inputs -->
+          <div id="boxCustomCasketInput" class="hidden p-3 bg-purple-50/70 border border-purple-200 rounded-xl space-y-2 text-xs">
+            <p class="font-bold text-purple-900 text-[11px]">Enter Custom Casket Details:</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input type="text" id="customCasketNameInput" placeholder="Casket Model Name" oninput="handleCustomSelectionChange()" class="p-2 rounded-lg border border-purple-300 bg-white outline-none font-semibold text-slate-800" value="Custom Tailored Casket" />
+              <div class="relative">
+                <span class="absolute left-2.5 top-2 font-bold text-purple-700 text-xs">₱</span>
+                <input type="number" id="customCasketPriceInput" placeholder="Price (₱)" oninput="handleCustomSelectionChange()" class="w-full pl-6 pr-2 py-2 rounded-lg border border-purple-300 bg-white outline-none font-bold text-slate-800" value="35000" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Floral Arrangements (Flowers) -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+              <span class="w-6 h-6 rounded-lg bg-pink-100 text-pink-800 flex items-center justify-center font-bold text-xs">2</span>
+              <span>Floral Arrangements (Flowers)</span>
+            </h3>
+            <span class="text-[11px] text-slate-400 font-medium">Select fresh flowers preference</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-pink-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-pink-600 has-[:checked]:bg-pink-50/40 has-[:checked]:ring-1 has-[:checked]:ring-pink-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customFlowerChoice" value="NONE" data-name="No Floral Service (Family Provided)" data-price="0" onchange="handleCustomSelectionChange()" checked class="text-pink-600 focus:ring-pink-500 mt-0.5">
+                <span class="font-bold text-emerald-700">₱0 (None)</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">None / Family Provided</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Client provides own floral wreaths</span>
+            </label>
+
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-pink-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-pink-600 has-[:checked]:bg-pink-50/40 has-[:checked]:ring-1 has-[:checked]:ring-pink-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customFlowerChoice" value="SPRAY" data-name="Standard Fresh White Floral Spray" data-price="2500" onchange="handleCustomSelectionChange()" class="text-pink-600 focus:ring-pink-500 mt-0.5">
+                <span class="font-bold text-pink-900">₱2,500</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">Standard Fresh Floral Spray</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Fresh white mums, carnations & orchids</span>
+            </label>
+
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-pink-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-pink-600 has-[:checked]:bg-pink-50/40 has-[:checked]:ring-1 has-[:checked]:ring-pink-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customFlowerChoice" value="STANDS" data-name="Twin Elegant Standing Floral Wreaths" data-price="4500" onchange="handleCustomSelectionChange()" class="text-pink-600 focus:ring-pink-500 mt-0.5">
+                <span class="font-bold text-pink-900">₱4,500</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">Twin Elegant Standing Wreaths</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">2-tier floral stands flanking the casket</span>
+            </label>
+
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-pink-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-pink-600 has-[:checked]:bg-pink-50/40 has-[:checked]:ring-1 has-[:checked]:ring-pink-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customFlowerChoice" value="DELUXE" data-name="Deluxe Garden Arch & Fresh Floral Ensemble" data-price="8000" onchange="handleCustomSelectionChange()" class="text-pink-600 focus:ring-pink-500 mt-0.5">
+                <span class="font-bold text-pink-900">₱8,000</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">Deluxe Garden Arch Ensemble</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Premium fresh lilies, roses & floral arch</span>
+            </label>
+
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-pink-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-pink-600 has-[:checked]:bg-pink-50/40 has-[:checked]:ring-1 has-[:checked]:ring-pink-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customFlowerChoice" id="radioCustomFlowerManual" value="CUSTOM" data-name="Custom Floral Package" data-price="0" onchange="handleCustomSelectionChange()" class="text-pink-600 focus:ring-pink-500 mt-0.5">
+                <span class="font-bold text-purple-800 text-[11px]">Custom Amount</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">Custom Floral Package</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Enter custom flowers & budget</span>
+            </label>
+          </div>
+
+          <!-- Custom Flower Manual Input -->
+          <div id="boxCustomFlowerInput" class="hidden p-3 bg-pink-50/70 border border-pink-200 rounded-xl space-y-2 text-xs">
+            <p class="font-bold text-pink-900 text-[11px]">Enter Custom Flower Preference:</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input type="text" id="customFlowerNameInput" placeholder="Floral Arrangement Name" oninput="handleCustomSelectionChange()" class="p-2 rounded-lg border border-pink-300 bg-white outline-none font-semibold text-slate-800" value="Custom Flower Bouquet & Wreath" />
+              <div class="relative">
+                <span class="absolute left-2.5 top-2 font-bold text-pink-700 text-xs">₱</span>
+                <input type="number" id="customFlowerPriceInput" placeholder="Price (₱)" oninput="handleCustomSelectionChange()" class="w-full pl-6 pr-2 py-2 rounded-lg border border-pink-300 bg-white outline-none font-bold text-slate-800" value="5000" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Vigil Lighting & Ambiance (Lights) -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+              <span class="w-6 h-6 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs">3</span>
+              <span>Vigil Lighting & Ambiance (Lights)</span>
+            </h3>
+            <span class="text-[11px] text-slate-400 font-medium">Select lighting and crucifix setup</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-amber-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-amber-600 has-[:checked]:bg-amber-50/40 has-[:checked]:ring-1 has-[:checked]:ring-amber-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customLightChoice" value="NONE" data-name="Standard Included Church/Home Lights" data-price="0" onchange="handleCustomSelectionChange()" checked class="text-amber-600 focus:ring-amber-500 mt-0.5">
+                <span class="font-bold text-emerald-700">₱0 (Default)</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">Standard / Venue Default</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Use venue's existing overhead lights</span>
+            </label>
+
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-amber-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-amber-600 has-[:checked]:bg-amber-50/40 has-[:checked]:ring-1 has-[:checked]:ring-amber-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customLightChoice" value="BRASS" data-name="Traditional Brass Candelabras & Cross Setup" data-price="1500" onchange="handleCustomSelectionChange()" class="text-amber-600 focus:ring-amber-500 mt-0.5">
+                <span class="font-bold text-amber-900">₱1,500</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">Brass Candelabras & Cross</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Classic vigil candles & crucifix stand</span>
+            </label>
+
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-amber-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-amber-600 has-[:checked]:bg-amber-50/40 has-[:checked]:ring-1 has-[:checked]:ring-amber-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customLightChoice" value="WARM_LED" data-name="Warm Vigil Ambient LED Strip & Spotlights" data-price="3200" onchange="handleCustomSelectionChange()" class="text-amber-600 focus:ring-amber-500 mt-0.5">
+                <span class="font-bold text-amber-900">₱3,200</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">Ambient Warm LED Spotlights</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Soft aesthetic warm spotlights & halo</span>
+            </label>
+
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-amber-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-amber-600 has-[:checked]:bg-amber-50/40 has-[:checked]:ring-1 has-[:checked]:ring-amber-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customLightChoice" value="ROYAL" data-name="Premier Royal Chandelier & Candlelight Array" data-price="5500" onchange="handleCustomSelectionChange()" class="text-amber-600 focus:ring-amber-500 mt-0.5">
+                <span class="font-bold text-amber-900">₱5,500</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">Royal Chandelier & Pillar Lights</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Full luxury archway & pillar ambiance</span>
+            </label>
+
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-amber-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-amber-600 has-[:checked]:bg-amber-50/40 has-[:checked]:ring-1 has-[:checked]:ring-amber-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customLightChoice" id="radioCustomLightManual" value="CUSTOM" data-name="Custom Vigil Lighting" data-price="0" onchange="handleCustomSelectionChange()" class="text-amber-600 focus:ring-amber-500 mt-0.5">
+                <span class="font-bold text-purple-800 text-[11px]">Custom Amount</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">Custom Lighting Setup</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Enter custom lights & budget</span>
+            </label>
+          </div>
+
+          <!-- Custom Light Manual Input -->
+          <div id="boxCustomLightInput" class="hidden p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2 text-xs">
+            <p class="font-bold text-amber-900 text-[11px]">Enter Custom Lighting Details:</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input type="text" id="customLightNameInput" placeholder="Lighting Setup Name" oninput="handleCustomSelectionChange()" class="p-2 rounded-lg border border-amber-300 bg-white outline-none font-semibold text-slate-800" value="Custom LED Vigil Lighting & Candlesticks" />
+              <div class="relative">
+                <span class="absolute left-2.5 top-2 font-bold text-amber-700 text-xs">₱</span>
+                <input type="number" id="customLightPriceInput" placeholder="Price (₱)" oninput="handleCustomSelectionChange()" class="w-full pl-6 pr-2 py-2 rounded-lg border border-amber-300 bg-white outline-none font-bold text-slate-800" value="2500" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Chapel / Vigil Venue & Duration -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+              <span class="w-6 h-6 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-xs">4</span>
+              <span>Chapel Suite or Home Vigil Setup</span>
+            </h3>
+            <span class="text-[11px] text-slate-400 font-medium">Choose venue and viewing duration</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-blue-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50/40 has-[:checked]:ring-1 has-[:checked]:ring-blue-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customChapelChoice" value="HOME_3" data-name="Home Residence Vigil Setup (3 Days)" data-price="4000" onchange="handleCustomSelectionChange()" checked class="text-blue-600 focus:ring-blue-500 mt-0.5">
+                <span class="font-bold text-blue-900">₱4,000</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">Home Vigil (3 Days)</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Curtains, carpets, vigil lamps at home</span>
+            </label>
+
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-blue-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50/40 has-[:checked]:ring-1 has-[:checked]:ring-blue-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customChapelChoice" value="HOME_5" data-name="Home Residence Vigil Setup (5 Days)" data-price="6500" onchange="handleCustomSelectionChange()" class="text-blue-600 focus:ring-blue-500 mt-0.5">
+                <span class="font-bold text-blue-900">₱6,500</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">Home Vigil (5 Days)</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">5 days viewing setup at residence</span>
+            </label>
+
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-blue-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50/40 has-[:checked]:ring-1 has-[:checked]:ring-blue-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customChapelChoice" value="CHAPEL_A_3" data-name="Chapel A Air-Conditioned Suite (3 Days)" data-price="15000" onchange="handleCustomSelectionChange()" class="text-blue-600 focus:ring-blue-500 mt-0.5">
+                <span class="font-bold text-blue-900">₱15,000</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">Chapel A (3 Days Aircon)</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">St. Peter Suite with 60 guest seating</span>
+            </label>
+
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-blue-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50/40 has-[:checked]:ring-1 has-[:checked]:ring-blue-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customChapelChoice" value="CHAPEL_A_5" data-name="Chapel A Air-Conditioned Suite (5 Days)" data-price="22000" onchange="handleCustomSelectionChange()" class="text-blue-600 focus:ring-blue-500 mt-0.5">
+                <span class="font-bold text-blue-900">₱22,000</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">Chapel A (5 Days Aircon)</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Premier suite with family rest room</span>
+            </label>
+
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-blue-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50/40 has-[:checked]:ring-1 has-[:checked]:ring-blue-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customChapelChoice" id="radioCustomChapelManual" value="CUSTOM" data-name="Custom Venue Setup" data-price="0" onchange="handleCustomSelectionChange()" class="text-blue-600 focus:ring-blue-500 mt-0.5">
+                <span class="font-bold text-purple-800 text-[11px]">Custom Amount</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">Custom Venue Setup</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Enter custom venue & days budget</span>
+            </label>
+          </div>
+
+          <!-- Custom Chapel Manual Input -->
+          <div id="boxCustomChapelInput" class="hidden p-3 bg-blue-50/70 border border-blue-200 rounded-xl space-y-2 text-xs">
+            <p class="font-bold text-blue-900 text-[11px]">Enter Custom Venue Information:</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input type="text" id="customChapelNameInput" placeholder="Venue / Chapel Name" oninput="handleCustomSelectionChange()" class="p-2 rounded-lg border border-blue-300 bg-white outline-none font-semibold text-slate-800" value="Custom Private Vigil Venue" />
+              <div class="relative">
+                <span class="absolute left-2.5 top-2 font-bold text-blue-700 text-xs">₱</span>
+                <input type="number" id="customChapelPriceInput" placeholder="Price (₱)" oninput="handleCustomSelectionChange()" class="w-full pl-6 pr-2 py-2 rounded-lg border border-blue-300 bg-white outline-none font-bold text-slate-800" value="10000" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. Embalming & Care -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+              <span class="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs">5</span>
+              <span>Embalming & Cosmetic Preparation</span>
+            </h3>
+            <span class="text-[11px] text-slate-400 font-medium">Select preservation & care</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-emerald-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-emerald-600 has-[:checked]:bg-emerald-50/40 has-[:checked]:ring-1 has-[:checked]:ring-emerald-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customEmbalmingChoice" value="STD" data-name="Standard Embalming & Basic Dressing" data-price="7500" onchange="handleCustomSelectionChange()" checked class="text-emerald-600 focus:ring-emerald-500 mt-0.5">
+                <span class="font-bold text-emerald-900">₱7,500</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">Standard Embalming & Dressing</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Sanitary preservation & cosmetic styling</span>
+            </label>
+
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-emerald-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-emerald-600 has-[:checked]:bg-emerald-50/40 has-[:checked]:ring-1 has-[:checked]:ring-emerald-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customEmbalmingChoice" value="SPEC" data-name="Special Restorative Embalming & Cosmetics" data-price="12000" onchange="handleCustomSelectionChange()" class="text-emerald-600 focus:ring-emerald-500 mt-0.5">
+                <span class="font-bold text-emerald-900">₱12,000</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">Special Facial Restoration</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Advanced restoration, derma reconstruction</span>
+            </label>
+
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-emerald-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-emerald-600 has-[:checked]:bg-emerald-50/40 has-[:checked]:ring-1 has-[:checked]:ring-emerald-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customEmbalmingChoice" value="NONE" data-name="None (Already Prepared / Cremation)" data-price="0" onchange="handleCustomSelectionChange()" class="text-emerald-600 focus:ring-emerald-500 mt-0.5">
+                <span class="font-bold text-emerald-700">₱0 (None)</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">None / External Preparation</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Cremation or previously embalmed</span>
+            </label>
+
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-emerald-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-emerald-600 has-[:checked]:bg-emerald-50/40 has-[:checked]:ring-1 has-[:checked]:ring-emerald-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customEmbalmingChoice" id="radioCustomEmbalmManual" value="CUSTOM" data-name="Custom Preservation Care" data-price="0" onchange="handleCustomSelectionChange()" class="text-emerald-600 focus:ring-emerald-500 mt-0.5">
+                <span class="font-bold text-purple-800 text-[11px]">Custom Amount</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">Custom Preservation Care</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Type custom preparation budget</span>
+            </label>
+          </div>
+
+          <!-- Custom Embalm Manual Input -->
+          <div id="boxCustomEmbalmInput" class="hidden p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-2 text-xs">
+            <p class="font-bold text-emerald-900 text-[11px]">Enter Custom Preparation:</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input type="text" id="customEmbalmNameInput" placeholder="Preparation Description" oninput="handleCustomSelectionChange()" class="p-2 rounded-lg border border-emerald-300 bg-white outline-none font-semibold text-slate-800" value="Custom Preservation & Make-up" />
+              <div class="relative">
+                <span class="absolute left-2.5 top-2 font-bold text-emerald-700 text-xs">₱</span>
+                <input type="number" id="customEmbalmPriceInput" placeholder="Price (₱)" oninput="handleCustomSelectionChange()" class="w-full pl-6 pr-2 py-2 rounded-lg border border-emerald-300 bg-white outline-none font-bold text-slate-800" value="8000" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6. Hearse & Transport Vehicle -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+              <span class="w-6 h-6 rounded-lg bg-teal-100 text-teal-800 flex items-center justify-center font-bold text-xs">6</span>
+              <span>Funeral Hearse & Escort Vehicle</span>
+            </h3>
+            <span class="text-[11px] text-slate-400 font-medium">Select interment escort transport</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-teal-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50/40 has-[:checked]:ring-1 has-[:checked]:ring-teal-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customHearseChoice" value="STD" data-name="Standard Funeral Hearse Escort" data-price="4500" onchange="handleCustomSelectionChange()" checked class="text-teal-600 focus:ring-teal-500 mt-0.5">
+                <span class="font-bold text-teal-900">₱4,500</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">Standard Funeral Hearse</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Traditional flower-draped hearse</span>
+            </label>
+
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-teal-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50/40 has-[:checked]:ring-1 has-[:checked]:ring-teal-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customHearseChoice" value="GLASS" data-name="Modern Glass-Walled Premier Hearse" data-price="7500" onchange="handleCustomSelectionChange()" class="text-teal-600 focus:ring-teal-500 mt-0.5">
+                <span class="font-bold text-teal-900">₱7,500</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">Glass-Walled Premier Hearse</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Panoramic glass casket showcase</span>
+            </label>
+
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-teal-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50/40 has-[:checked]:ring-1 has-[:checked]:ring-teal-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customHearseChoice" value="COMBO" data-name="Glass Hearse + Air-Conditioned Family Escort Van" data-price="12000" onchange="handleCustomSelectionChange()" class="text-teal-600 focus:ring-teal-500 mt-0.5">
+                <span class="font-bold text-teal-900">₱12,000</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">Hearse + Family Escort Van</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Hearse plus 14-seater family van</span>
+            </label>
+
+            <label class="custom-card flex flex-col p-3 rounded-xl border border-slate-200 hover:border-teal-300 cursor-pointer transition-all bg-slate-50/50 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50/40 has-[:checked]:ring-1 has-[:checked]:ring-teal-600">
+              <div class="flex items-start justify-between">
+                <input type="radio" name="customHearseChoice" value="NONE" data-name="None (Family Vehicle / Own Transport)" data-price="0" onchange="handleCustomSelectionChange()" class="text-teal-600 focus:ring-teal-500 mt-0.5">
+                <span class="font-bold text-emerald-700">₱0 (None)</span>
+              </div>
+              <span class="font-bold text-slate-800 mt-1">None / Family Transport</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Client provides vehicles</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 7. Selectable Add-ons & Extra Custom Services -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+              <span class="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-800 flex items-center justify-center font-bold text-xs">7</span>
+              <span>Additional Amenities & Mass Cards</span>
+            </h3>
+            <span class="text-[11px] text-slate-400 font-medium">Select extra services or add custom</span>
+          </div>
+
+          <div class="space-y-2 text-xs" id="customAddOnsList">
+            <label class="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white cursor-pointer transition-all">
+              <div class="flex items-center gap-3">
+                <input type="checkbox" data-name="Printed Memorial Mass Cards (100 pcs)" data-price="1500" onchange="handleCustomSelectionChange()" class="custom-addon-checkbox rounded text-purple-600 focus:ring-purple-500 h-4 w-4">
+                <span class="font-medium text-slate-800">Printed Memorial Mass Cards (100 pcs)</span>
+              </div>
+              <span class="font-bold text-amber-700">+₱1,500</span>
+            </label>
+
+            <label class="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white cursor-pointer transition-all">
+              <div class="flex items-center gap-3">
+                <input type="checkbox" data-name="Memorial Guest Registry Book" data-price="800" onchange="handleCustomSelectionChange()" class="custom-addon-checkbox rounded text-purple-600 focus:ring-purple-500 h-4 w-4">
+                <span class="font-medium text-slate-800">Memorial Guest Registry Book & Stand</span>
+              </div>
+              <span class="font-bold text-amber-700">+₱800</span>
+            </label>
+
+            <label class="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white cursor-pointer transition-all">
+              <div class="flex items-center gap-3">
+                <input type="checkbox" data-name="Photo Frame Easel Stand & Tarpaulin" data-price="1200" onchange="handleCustomSelectionChange()" class="custom-addon-checkbox rounded text-purple-600 focus:ring-purple-500 h-4 w-4">
+                <span class="font-medium text-slate-800">Photo Frame Easel Stand & Tarpaulin Print</span>
+              </div>
+              <span class="font-bold text-amber-700">+₱1,200</span>
+            </label>
+
+            <label class="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white cursor-pointer transition-all">
+              <div class="flex items-center gap-3">
+                <input type="checkbox" data-name="Sound System & Wireless Microphone" data-price="2000" onchange="handleCustomSelectionChange()" class="custom-addon-checkbox rounded text-purple-600 focus:ring-purple-500 h-4 w-4">
+                <span class="font-medium text-slate-800">Sound System & Wireless Microphone Setup</span>
+              </div>
+              <span class="font-bold text-amber-700">+₱2,000</span>
+            </label>
+
+            <label class="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white cursor-pointer transition-all">
+              <div class="flex items-center gap-3">
+                <input type="checkbox" data-name="Ceramic Keepsake Urn Upgrade" data-price="6500" onchange="handleCustomSelectionChange()" class="custom-addon-checkbox rounded text-purple-600 focus:ring-purple-500 h-4 w-4">
+                <span class="font-medium text-slate-800">Ceramic Keepsake Urn Upgrade</span>
+              </div>
+              <span class="font-bold text-amber-700">+₱6,500</span>
+            </label>
+
+            <label class="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white cursor-pointer transition-all">
+              <div class="flex items-center gap-3">
+                <input type="checkbox" data-name="Burial Permit Assistance & Coordination" data-price="1000" onchange="handleCustomSelectionChange()" class="custom-addon-checkbox rounded text-purple-600 focus:ring-purple-500 h-4 w-4">
+                <span class="font-medium text-slate-800">Burial Permit Assistance & Coordination</span>
+              </div>
+              <span class="font-bold text-amber-700">+₱1,000</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Custom Order Live Calculations & Checkout (5 Cols) -->
+      <div class="lg:col-span-5 space-y-6 sticky top-6">
+        <div class="bg-white rounded-2xl border border-purple-200/80 p-6 shadow-sm space-y-5">
+          <h3 class="text-base font-bold text-slate-800 pb-3 border-b border-slate-100 flex items-center justify-between">
+            <span class="flex items-center gap-2">
+              <i data-lucide="calculator" class="w-4 h-4 text-purple-600"></i>
+              Custom Order Summary
+            </span>
+            <span class="text-xs text-purple-700 font-semibold bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-200">
+              Live Budget Tracker
+            </span>
+          </h3>
+
+          <!-- Client & Deceased Info -->
+          <div class="space-y-2 text-xs">
+            <label class="block font-bold text-slate-500 uppercase text-[11px]">Client / Deceased Details</label>
+            <input
+              type="text"
+              id="customDeceasedName"
+              placeholder="Deceased Full Name *"
+              maxlength="40"
+              oninput="handleNameInput(this, 'customDeceasedNameErr')"
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:ring-2 focus:ring-purple-500"
+            />
+            <p id="customDeceasedNameErr" class="text-[10px] text-purple-600 font-semibold hidden"></p>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <input
+                  type="text"
+                  id="customContactPerson"
+                  placeholder="Contact Person *"
+                  maxlength="40"
+                  oninput="handleNameInput(this, 'customContactPersonErr')"
+                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:ring-2 focus:ring-purple-500"
+                />
+                <p id="customContactPersonErr" class="text-[10px] text-purple-600 font-semibold hidden"></p>
+              </div>
+              <div>
+                <input
+                  type="tel"
+                  id="customContactNumber"
+                  placeholder="Mobile (11 digits) *"
+                  maxlength="11"
+                  pattern="[0-9]{11}"
+                  oninput="handleMobileInput(this, 'customContactNumberErr')"
+                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:ring-2 focus:ring-purple-500"
+                />
+                <p id="customContactNumberErr" class="text-[10px] text-purple-600 font-semibold hidden"></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Itemized Breakdown -->
+          <div class="pt-3 border-t border-slate-100 space-y-2 text-xs">
+            <div class="flex justify-between text-slate-600">
+              <span class="truncate max-w-[200px]" id="lblCustomCasket">⚰️ Casket:</span>
+              <span id="costCustomCasket" class="font-semibold text-slate-800">₱0</span>
+            </div>
+            <div class="flex justify-between text-slate-600">
+              <span class="truncate max-w-[200px]" id="lblCustomFlower">🌸 Flowers:</span>
+              <span id="costCustomFlower" class="font-semibold text-slate-800">₱0</span>
+            </div>
+            <div class="flex justify-between text-slate-600">
+              <span class="truncate max-w-[200px]" id="lblCustomLight">💡 Lights:</span>
+              <span id="costCustomLight" class="font-semibold text-slate-800">₱0</span>
+            </div>
+            <div class="flex justify-between text-slate-600">
+              <span class="truncate max-w-[200px]" id="lblCustomChapel">🏛️ Venue / Chapel:</span>
+              <span id="costCustomChapel" class="font-semibold text-slate-800">₱0</span>
+            </div>
+            <div class="flex justify-between text-slate-600">
+              <span class="truncate max-w-[200px]" id="lblCustomEmbalm">🕊️ Embalming:</span>
+              <span id="costCustomEmbalm" class="font-semibold text-slate-800">₱0</span>
+            </div>
+            <div class="flex justify-between text-slate-600">
+              <span class="truncate max-w-[200px]" id="lblCustomHearse">🚗 Hearse:</span>
+              <span id="costCustomHearse" class="font-semibold text-slate-800">₱0</span>
+            </div>
+            <div class="flex justify-between text-slate-600">
+              <span>📋 Add-ons & Extras:</span>
+              <span id="costCustomAddOns" class="font-semibold text-slate-800">+₱0</span>
+            </div>
+
+            <div class="flex justify-between text-slate-800 font-bold pt-2 border-t border-slate-100">
+              <span>Custom Subtotal:</span>
+              <span id="customSubtotalDisplay" class="text-slate-900 font-extrabold">₱0</span>
+            </div>
+
+            <!-- Discount (%) -->
+            <label class="flex items-center justify-between p-2.5 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-xl transition-colors">
+              <div class="flex items-center gap-2">
+                <span class="font-semibold text-slate-700">Budget Discount (%)</span>
+                <input
+                  type="number"
+                  id="customDiscountPercent"
+                  min="0"
+                  max="100"
+                  value="0"
+                  oninput="handleCustomSelectionChange()"
+                  class="w-16 rounded border border-slate-300 text-purple-600 focus:ring-purple-500 px-2 py-1 font-bold text-center"
+                />
+              </div>
+              <span id="customDiscountAmountDisplay" class="text-emerald-600 font-bold">₱0</span>
+            </label>
+
+            <!-- Total Amount -->
+            <div class="flex justify-between items-center text-sm font-black text-slate-900 pt-2 border-t border-slate-200">
+              <span>Total Contract Due:</span>
+              <span id="customTotalDue" class="text-xl text-purple-700">₱0</span>
+            </div>
+          </div>
+
+          <!-- Down Payment & Remaining Balance (All Peso ₱ signs) -->
+          <div class="pt-3 border-t border-slate-100 space-y-3">
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <label class="block text-[11px] font-bold text-slate-600 uppercase">
+                  Down Payment / Deposit (₱)
+                </label>
+                <span id="customDpBadge" class="text-[10px] font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full">
+                  50% Deposit
+                </span>
+              </div>
+
+              <!-- Preset Buttons -->
+              <div class="grid grid-cols-3 gap-1.5 mb-2">
+                <button
+                  type="button"
+                  id="btnCustomDp50"
+                  onclick="setCustomDpPreset('50')"
+                  class="py-1 px-2 rounded-lg text-[11px] font-bold border border-purple-500 bg-purple-50 text-purple-800 transition-all text-center"
+                >
+                  50% Deposit
+                </button>
+                <button
+                  type="button"
+                  id="btnCustomDp100"
+                  onclick="setCustomDpPreset('100')"
+                  class="py-1 px-2 rounded-lg text-[11px] font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all text-center"
+                >
+                  100% Full
+                </button>
+                <button
+                  type="button"
+                  id="btnCustomDpManual"
+                  onclick="setCustomDpPreset('custom')"
+                  class="py-1 px-2 rounded-lg text-[11px] font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all text-center"
+                >
+                  Custom
+                </button>
+              </div>
+
+              <div class="relative">
+                <span class="absolute left-3 top-2.5 font-bold text-slate-400 text-sm">₱</span>
+                <input
+                  type="number"
+                  id="customDownPaymentInput"
+                  min="0"
+                  value="0"
+                  oninput="handleCustomDpManualInput()"
+                  class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-sm font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Payment Method</label>
+              <select id="customPaymentMethodSelect" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-purple-500">
+                <option value="Cash">Cash Payment</option>
+                <option value="GCash">GCash QR</option>
+                <option value="Bank Transfer">Bank Transfer (BDO / BPI)</option>
+                <option value="Installment">Installment Agreement</option>
+              </select>
+            </div>
+
+            <div class="p-3.5 bg-purple-50/80 border border-purple-200 rounded-xl flex justify-between items-center text-purple-950">
+              <span class="text-xs font-bold uppercase tracking-wider">Remaining Balance:</span>
+              <span id="customRemainingBalanceDisplay" class="text-lg font-black text-purple-900">₱0</span>
+            </div>
+          </div>
+
+          <!-- Submit Custom Order -->
+          <div class="space-y-2 pt-2">
+            <button
+              type="button"
+              id="btnProcessCustomOrder"
+              onclick="processCustomOrder()"
+              class="w-full py-3 bg-purple-700 hover:bg-purple-800 text-white rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-purple-900/10 transition-all"
+            >
+              <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+              <span>Process Custom Order & Issue Invoice</span>
+            </button>
+
+            <button
+              type="button"
+              onclick="resetCustomOrderForm()"
+              class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition-colors"
+            >
+              Reset Custom Builder
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================== -->
+<!-- PACKAGE QR ENLARGE & ESP32 PROJECTION MODAL                     -->
+<!-- ============================================================== -->
+<div id="posQrModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+  <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl border border-yellow-500/40 p-6 space-y-4 text-center animate-fade-in relative">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+      <div class="flex items-center gap-2">
+        <div class="p-1.5 bg-yellow-500/20 text-yellow-600 rounded-lg">
+          <i data-lucide="qr-code" class="w-4 h-4"></i>
+        </div>
+        <h3 class="font-bold text-slate-800 text-sm">Package QR Tag &amp; Projection</h3>
+      </div>
+      <button type="button" onclick="closePosQrPreview()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <!-- Printable QR Tag Area -->
+    <div id="posPrintableQrTag" class="p-5 bg-slate-50 border-2 border-dashed border-yellow-500/50 rounded-2xl space-y-3">
+      <div>
+        <p class="text-[10px] font-bold text-yellow-600 uppercase tracking-widest">RebongSancon Funeral Services</p>
+        <h4 id="posModalPkgName" class="font-extrabold text-sm text-slate-900 mt-1 line-clamp-2">Package Name</h4>
+        <span id="posModalPkgCode" class="inline-block mt-1 font-mono text-xs font-bold bg-black text-yellow-400 px-2.5 py-0.5 rounded-full">CSK-CODE</span>
+      </div>
+
+      <div class="bg-white p-3 rounded-2xl border border-slate-200 inline-block shadow-sm">
+        <img id="posModalQrImg" src="" alt="Package QR Code" class="w-44 h-44 mx-auto object-contain">
+      </div>
+
+      <div>
+        <span id="posModalPkgPrice" class="text-lg font-black text-amber-700 block">₱0</span>
+        <p class="text-[10px] text-slate-500 mt-0.5">Scannable by Customer Mobile App &amp; ESP32 Scanner</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 pt-2">
+      <button type="button" onclick="closePosQrPreview()" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs font-semibold">
+        Close
+      </button>
+      <button type="button" id="posModalProjectBtn" onclick="projectActiveModalQr()" class="flex-1 py-2.5 bg-black hover:bg-yellow-500 hover:text-black text-white font-bold rounded-xl transition-all shadow text-xs flex items-center justify-center gap-1.5 border border-yellow-500/30">
+        <i data-lucide="cast" class="w-3.5 h-3.5 text-yellow-400"></i>
+        <span>Project to ESP32</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================== -->
+<!-- FINAL ORDER VALIDATION & CONFIRMATION MODAL (ANTI-HUMAN-ERROR) -->
+<!-- ============================================================== -->
+<div id="posFinalValidationModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+  <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-amber-500/40 overflow-hidden animate-fade-in">
+    <!-- Modal Header -->
+    <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="p-2 bg-amber-500/20 text-amber-400 rounded-xl">
+          <i data-lucide="shield-check" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h3 class="font-extrabold text-sm tracking-wide">Final Order Verification</h3>
+          <p class="text-[11px] text-slate-300">Review every detail carefully before issuing the official invoice.</p>
+        </div>
+      </div>
+      <button type="button" onclick="closeFinalValidationModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <!-- Modal Body -->
+    <div class="p-6 space-y-4 max-h-[75vh] overflow-y-auto text-xs">
+      <!-- Human-Error Smart Warnings (Only shown if unusual values detected) -->
+      <div id="valWarningsBox" class="hidden p-3.5 bg-amber-50 border border-amber-300 rounded-2xl space-y-1.5 text-amber-900">
+        <div class="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-amber-800">
+          <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600 shrink-0"></i>
+          <span>Please Double-Check Before Confirming</span>
+        </div>
+        <ul id="valWarningsList" class="list-disc list-inside space-y-1 text-[11px] font-medium"></ul>
+      </div>
+
+      <!-- Order Summary Card -->
+      <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Selected Service</span>
+          <span id="valOrderTypeBadge" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">Package Order</span>
+        </div>
+        <p id="valPackageName" class="font-extrabold text-sm text-slate-900">--</p>
+        <div id="valAddOnsRow" class="hidden text-[11px] text-slate-600 pt-1 border-t border-slate-200/80">
+          <span class="font-bold text-slate-700">Add-ons:</span>
+          <span id="valAddOnsText">--</span>
+        </div>
+      </div>
+
+      <!-- Client Details Card -->
+      <div class="p-4 bg-white border border-slate-200 rounded-2xl space-y-2">
+        <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Client &amp; Reservation Details</span>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+          <div>
+            <span class="block text-[10px] text-slate-400 font-semibold">Deceased Full Name</span>
+            <span id="valDeceasedName" class="font-bold text-slate-900 text-xs">--</span>
+          </div>
+          <div>
+            <span class="block text-[10px] text-slate-400 font-semibold">Contact Person</span>
+            <span id="valContactPerson" class="font-bold text-slate-900 text-xs">--</span>
+          </div>
+          <div class="sm:col-span-2">
+            <span class="block text-[10px] text-slate-400 font-semibold">Mobile Number</span>
+            <span id="valContactNumber" class="font-mono font-bold text-slate-900 text-xs">--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment Breakdown Card -->
+      <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1.5">
+        <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Financial Summary</span>
+        <div class="flex justify-between text-slate-600">
+          <span>Subtotal:</span>
+          <span id="valSubtotal" class="font-semibold">₱0</span>
+        </div>
+        <div class="flex justify-between text-emerald-700">
+          <span>Discount:</span>
+          <span id="valDiscount" class="font-semibold">₱0</span>
+        </div>
+        <div class="flex justify-between text-slate-900 font-extrabold text-sm pt-1.5 border-t border-slate-200">
+          <span>Total Amount:</span>
+          <span id="valTotalAmount" class="text-amber-700">₱0</span>
+        </div>
+        <div class="flex justify-between text-slate-700 pt-1">
+          <span>Down Payment (<span id="valPaymentMethod" class="font-bold">Cash</span>):</span>
+          <span id="valDownPayment" class="font-bold text-slate-900">₱0</span>
+        </div>
+        <div class="flex justify-between text-amber-950 font-black text-sm p-2.5 mt-1.5 bg-amber-100/70 border border-amber-300 rounded-xl">
+          <span>Remaining Balance:</span>
+          <span id="valRemainingBalance">₱0</span>
+        </div>
+      </div>
+
+      <!-- Mandatory Human Verification Checkbox -->
+      <label class="flex items-start gap-2.5 p-3.5 bg-blue-50/70 border border-blue-200 rounded-2xl cursor-pointer select-none">
+        <input
+          type="checkbox"
+          id="valConfirmCheckbox"
+          onchange="toggleFinalConfirmButton()"
+          class="mt-0.5 w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-slate-300"
+        />
+        <span class="text-[11px] font-semibold text-slate-800 leading-relaxed">
+          I have verified that the <strong>Deceased Name</strong>, <strong>Contact Person</strong>, <strong>Mobile Number</strong>, <strong>Package</strong>, and <strong>Payment Amounts</strong> are all accurate.
+        </span>
+      </label>
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center gap-3">
+      <button
+        type="button"
+        id="btnValCancel"
+        onclick="closeFinalValidationModal()"
+        class="flex-1 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 text-xs font-bold transition-colors"
+      >
+        Go Back &amp; Edit
+      </button>
+      <button
+        type="button"
+        id="btnValConfirmSubmit"
+        onclick="confirmAndSubmitPendingOrder()"
+        disabled
+        class="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white text-xs font-extrabold uppercase tracking-wider shadow-md transition-all flex items-center justify-center gap-2"
+      >
+        <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+        <span>Confirm &amp; Issue Invoice</span>
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/pos.js"></script>
+{% endblock %}

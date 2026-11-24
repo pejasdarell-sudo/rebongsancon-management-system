@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Showroom Packages & Special Promos | RebongSancon Funeral Services</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 20px rgba(234, 179, 8, 0.25); }
+      50% { box-shadow: 0 0 35px rgba(234, 179, 8, 0.45); }
+    }
+    .billboard-glow {
+      animation: pulseGlow 4s infinite;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen flex flex-col selection:bg-yellow-500 selection:text-black">
+
+  <!-- Top Sticky Navigation Bar -->
+  <header class="bg-black/90 backdrop-blur-md border-b border-yellow-500/30 sticky top-0 z-40 px-6 py-4 flex items-center justify-between shadow-xl">
+    <!-- Brand -->
+    <div class="flex items-center gap-3.5">
+      <div class="p-2.5 bg-yellow-500/20 border border-yellow-500/50 rounded-2xl text-yellow-400">
+        <i data-lucide="church" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <h1 class="text-lg font-black text-white tracking-wide flex items-center gap-2">
+          RebongSancon
+          <span class="text-[10px] bg-yellow-500 text-black px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
+            Billboard Mode
+          </span>
+        </h1>
+        <p class="text-xs text-yellow-500/90 font-medium">Showroom Packages & Promotional Showcase</p>
+      </div>
+    </div>
+
+    <!-- Center Contact Info Hotline -->
+    <div class="hidden md:flex items-center gap-6 text-xs text-slate-300">
+      <div class="flex items-center gap-2">
+        <i data-lucide="phone-call" class="w-4 h-4 text-yellow-400 animate-pulse"></i>
+        <span>Hotline: <strong class="text-white font-mono">0917-000-0000 / 0918-000-0000</strong></span>
+      </div>
+      <div class="flex items-center gap-2">
+        <i data-lucide="map-pin" class="w-4 h-4 text-yellow-400"></i>
+        <span>Victoria, Laguna</span>
+      </div>
+    </div>
+
+    <!-- Action Controls -->
+    <div class="flex items-center gap-3">
+      <!-- Auto-Cycle / Play button -->
+      <button
+        id="btnAutoPlay"
+        onclick="toggleAutoPlay()"
+        class="px-3.5 py-2 rounded-xl text-xs font-bold border border-yellow-500/40 bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500 hover:text-black transition-all flex items-center gap-1.5 shadow-sm"
+        title="Toggle Auto Billboard Cycling for showroom monitors"
+      >
+        <i id="playIcon" data-lucide="play" class="w-3.5 h-3.5"></i>
+        <span id="playText">Auto Billboard</span>
+      </button>
+
+      <!-- Fullscreen button -->
+      <button
+        onclick="toggleFullscreen()"
+        class="p-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-900 text-slate-300 hover:text-white hover:border-slate-500 transition-all"
+        title="Fullscreen Kiosk"
+      >
+        <i data-lucide="maximize" class="w-4 h-4"></i>
+      </button>
+
+      <!-- Back to Staff Portal -->
+      <a
+        href="/login"
+        class="px-4 py-2 rounded-xl text-xs font-bold bg-white text-black hover:bg-yellow-400 transition-all flex items-center gap-1.5 shadow"
+      >
+        <i data-lucide="lock" class="w-3.5 h-3.5"></i>
+        <span>Staff Portal</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Hero Billboard Banner Section -->
+  <section class="relative bg-gradient-to-b from-black via-slate-900 to-slate-950 py-10 px-6 sm:px-12 border-b border-yellow-500/20">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+      
+      <!-- Text Intro (7 cols) -->
+      <div class="lg:col-span-7 space-y-4">
+        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 text-xs font-bold uppercase tracking-wider">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+          Official 2026 Memorial Showroom & Packages
+        </div>
+        <h2 class="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+          Dignified, Compassionate, & <span class="text-yellow-400 underline decoration-yellow-500/40 decoration-4 underline-offset-4">Affordable Services</span>
+        </h2>
+        <p class="text-sm sm:text-base text-slate-300 max-w-2xl leading-relaxed">
+          RebongSancon Funeral Services provides comprehensive and respectful memorial arrangements. Choose from our showroom packages or scan any unique QR code with our mobile app to view full details instantly.
+        </p>
+
+        <!-- Feature Badges -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 text-xs">
+          <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center gap-2.5">
+            <i data-lucide="shield-check" class="w-5 h-5 text-yellow-400 shrink-0"></i>
+            <span class="font-semibold text-slate-200">Complete Care & Embalming</span>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center gap-2.5">
+            <i data-lucide="car" class="w-5 h-5 text-yellow-400 shrink-0"></i>
+            <span class="font-semibold text-slate-200">Modern Glass Hearse Escort</span>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center gap-2.5">
+            <i data-lucide="qr-code" class="w-5 h-5 text-yellow-400 shrink-0"></i>
+            <span class="font-semibold text-slate-200">Mobile App QR Integration</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Editable Billboard Banner Image (5 cols) -->
+      <div class="lg:col-span-5 relative group">
+        <div class="relative rounded-3xl overflow-hidden border-2 border-yellow-500/40 shadow-2xl billboard-glow bg-black min-h-[260px] sm:min-h-[320px] flex items-center justify-center">
+          <img
+            id="billboardDisplayImg"
+            src="{{ billboard_image or '/static/images/login_bg.jpg' }}"
+            alt="RebongSancon Funeral Promo Billboard"
+            class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            onerror="this.src='/static/images/login_bg.jpg'"
+          />
+          <div class="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent"></div>
+          
+          <div class="absolute bottom-4 left-4 right-4 text-white">
+            <span class="text-[10px] bg-yellow-500 text-black px-2 py-0.5 rounded font-black uppercase">Promo Highlight</span>
+            <h3 class="text-lg font-bold text-white mt-1">Peace of Mind for Every Family</h3>
+            <p class="text-xs text-slate-300">Available across Laguna & Southern Luzon</p>
+          </div>
+
+          <!-- Edit Billboard Image Button -->
+          <button
+            type="button"
+            onclick="openBillboardUploadModal()"
+            class="absolute top-4 right-4 p-2.5 rounded-xl bg-black/80 hover:bg-yellow-500 text-yellow-400 hover:text-black border border-yellow-500/50 backdrop-blur-sm transition-all text-xs font-bold flex items-center gap-1.5 shadow-lg opacity-80 hover:opacity-100"
+            title="Edit / Upload Billboard Banner Image"
+          >
+            <i data-lucide="camera" class="w-4 h-4"></i>
+            <span>Edit Banner</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Filter Selector Tabs -->
+  <section class="max-w-7xl mx-auto px-6 pt-8 w-full">
+    <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-800">
+      <div>
+        <h3 class="text-xl font-black text-white flex items-center gap-2">
+          <i data-lucide="boxes" class="w-5 h-5 text-yellow-400"></i>
+          Showroom Packages
+        </h3>
+        <p class="text-xs text-slate-400">Explore complete packages or scan package QR tags with your mobile phone.</p>
+      </div>
+
+      <!-- Category Filter Pills -->
+      <div class="flex flex-wrap items-center gap-2 text-xs font-bold">
+        <button onclick="filterPackages('all')" class="filter-btn active px-4 py-2 rounded-xl border border-yellow-500/50 bg-yellow-500 text-black shadow-sm transition-all" data-cat="all">
+          All Packages ({{ caskets | length }})
+        </button>
+        <button onclick="filterPackages('hardwood')" class="filter-btn px-4 py-2 rounded-xl border border-slate-800 bg-slate-900 text-slate-300 hover:border-yellow-500/40 hover:text-white transition-all" data-cat="hardwood">
+          Hardwood Caskets
+        </button>
+        <button onclick="filterPackages('metal')" class="filter-btn px-4 py-2 rounded-xl border border-slate-800 bg-slate-900 text-slate-300 hover:border-yellow-500/40 hover:text-white transition-all" data-cat="metal">
+          Metal Protective Sealers
+        </button>
+        <button onclick="filterPackages('budget')" class="filter-btn px-4 py-2 rounded-xl border border-slate-800 bg-slate-900 text-slate-300 hover:border-yellow-500/40 hover:text-white transition-all" data-cat="budget">
+          Budget-Friendly Deals
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Packages Billboard Catalog Grid -->
+  <main class="max-w-7xl mx-auto px-6 py-8 w-full flex-1">
+    <div id="packagesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {% for item in caskets %}
+      <div
+        class="package-card bg-slate-900 rounded-3xl border border-slate-800 hover:border-yellow-500/50 shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden flex flex-col justify-between group"
+        data-category="{{ (item.category or '') | lower }}"
+        data-material="{{ (item.material or '') | lower }}"
+        data-price="{{ item.base_price }}"
+      >
+        <!-- Package Image Header -->
+        <div class="relative h-56 bg-slate-950 overflow-hidden">
+          {% if item.image_url %}
+          <img
+            src="{{ item.image_url }}"
+            alt="{{ item.name }}"
+            class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            onerror="this.src='/static/images/login_bg.jpg'"
+          />
+          {% else %}
+          <div class="w-full h-full flex flex-col items-center justify-center bg-slate-950 text-slate-600 space-y-2">
+            <i data-lucide="image" class="w-12 h-12 stroke-[1.5]"></i>
+            <span class="text-xs font-semibold text-slate-500">Showroom Package Display</span>
+          </div>
+          {% endif %}
+
+          <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-black/40"></div>
+
+          <!-- Top Badges -->
+          <div class="absolute top-3 left-3 right-3 flex items-center justify-between">
+            <span class="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-black/80 text-yellow-400 border border-yellow-500/40 backdrop-blur-sm">
+              {{ item.casket_code }}
+            </span>
+            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-yellow-500 text-black uppercase tracking-wider">
+              {{ item.category or 'Funeral Package' }}
+            </span>
+          </div>
+
+          <!-- Bottom Price Ribbon -->
+          <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+            <div>
+              <span class="text-[10px] uppercase font-bold text-yellow-400/90 block">Complete Package Deal</span>
+              <span class="text-2xl font-black text-white drop-shadow">
+                {{ item.base_price | currency }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Package Details & Inclusions -->
+        <div class="p-6 flex-1 flex flex-col justify-between space-y-4">
+          <div class="space-y-2">
+            <h3 class="text-lg font-bold text-white group-hover:text-yellow-400 transition-colors leading-tight">
+              {{ item.name }}
+            </h3>
+            <p class="text-xs text-slate-400">
+              <strong class="text-slate-300">{{ item.material or 'Hardwood' }}</strong> • {{ item.dimensions or 'Standard Full Size' }}
+            </p>
+
+            <!-- Inclusions preview -->
+            {% if item.inclusions %}
+            <div class="pt-3 border-t border-slate-800 space-y-1.5">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-yellow-500/90 block">Included Services:</span>
+              <ul class="text-xs text-slate-300 space-y-1">
+                {% for inc in item.inclusions[:3] %}
+                <li class="flex items-start gap-2">
+                  <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5"></i>
+                  <span class="line-clamp-1">{{ inc }}</span>
+                </li>
+                {% endfor %}
+                {% if item.inclusions | length > 3 %}
+                <li class="text-[11px] text-yellow-400 font-semibold italic pl-5">
+                  +{{ (item.inclusions | length) - 3 }} more package inclusions
+                </li>
+                {% endif %}
+              </ul>
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Scannable QR Code Box -->
+          <div class="pt-3 border-t border-slate-800 flex items-center justify-between gap-3 bg-slate-950/70 p-3 rounded-2xl border border-slate-800/80">
+            <div class="space-y-0.5">
+              <span class="text-[10px] uppercase font-bold tracking-wider text-yellow-400 flex items-center gap-1">
+                <i data-lucide="scan-line" class="w-3 h-3"></i>
+                Scan in Mobile App
+              </span>
+              <p class="text-[11px] text-slate-400 leading-tight">
+                Scan unique code <strong class="text-white font-mono">{{ item.casket_code }}</strong>
+              </p>
+            </div>
+
+            <!-- QR Code Thumbnail -->
+            <button
+              type="button"
+              onclick="openPackageDetailModal('{{ item.casket_code }}')"
+              class="relative shrink-0 group/qr p-1.5 bg-white rounded-xl border border-yellow-500/40 hover:scale-105 transition-all shadow"
+              title="Click to view large scannable QR code"
+            >
+              <img
+                src="{{ item.qr_image_url or ('/static/uploads/qrcodes/' ~ item.casket_code ~ '.png') }}"
+                alt="QR Code {{ item.casket_code }}"
+                class="w-14 h-14 object-contain"
+              />
+              <div class="absolute inset-0 bg-black/40 rounded-xl opacity-0 group-hover/qr:opacity-100 flex items-center justify-center transition-opacity text-white">
+                <i data-lucide="maximize-2" class="w-4 h-4"></i>
+              </div>
+            </button>
+          </div>
+
+          <!-- Action Button -->
+          <button
+            type="button"
+            onclick="openPackageDetailModal('{{ item.casket_code }}')"
+            class="w-full py-3 rounded-xl bg-slate-800 hover:bg-yellow-500 hover:text-black text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-slate-700 hover:border-yellow-500"
+          >
+            <i data-lucide="eye" class="w-4 h-4"></i>
+            <span>View Full Package & Inclusions</span>
+          </button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </main>
+
+  <!-- PACKAGE DETAILS & LARGE QR CODE LIGHTBOX MODAL -->
+  <div id="packageDetailModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-slate-900 text-white w-full max-w-2xl rounded-3xl border border-yellow-500/40 shadow-2xl overflow-hidden animate-fade-in my-8">
+      <!-- Modal Header -->
+      <div class="bg-black p-6 border-b border-yellow-500/30 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="p-2 bg-yellow-500/20 text-yellow-400 rounded-xl">
+            <i data-lucide="award" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <span id="mCategory" class="text-[10px] bg-yellow-500 text-black px-2 py-0.5 rounded font-black uppercase">CATEGORY</span>
+            <h3 id="mTitle" class="text-lg font-black text-white mt-1">Package Title</h3>
+          </div>
+        </div>
+        <button onclick="closePackageDetailModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-6 items-center">
+          <!-- QR Scanner Box (5 cols) -->
+          <div class="sm:col-span-5 text-center p-5 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
+            <span class="text-[11px] font-bold text-yellow-400 uppercase tracking-wider block">
+              Unique Mobile QR Code
+            </span>
+            <div class="bg-white p-3 rounded-2xl border-2 border-yellow-500/50 inline-block shadow-lg">
+              <img id="mQrImage" src="" alt="Package QR Code" class="w-44 h-44 object-contain mx-auto">
+            </div>
+            <div>
+              <span id="mCode" class="font-mono text-xs font-bold text-yellow-400 bg-slate-900 px-3 py-1 rounded-full border border-slate-700">CSK-CODE</span>
+              <p class="text-[10px] text-slate-400 mt-2">
+                Point your mobile app scanner at this code to load this package directly.
+              </p>
+            </div>
+          </div>
+
+          <!-- Specs & Price (7 cols) -->
+          <div class="sm:col-span-7 space-y-4">
+            <div>
+              <span class="text-xs uppercase font-bold text-slate-400 block">Package Base Price:</span>
+              <span id="mPrice" class="text-3xl font-black text-yellow-400">₱0</span>
+            </div>
+
+            <div class="space-y-1.5 text-xs text-slate-300">
+              <p><strong>Casket Material:</strong> <span id="mMaterial">--</span></p>
+              <p><strong>Dimensions:</strong> <span id="mDimensions">--</span></p>
+            </div>
+
+            <div class="pt-3 border-t border-slate-800">
+              <span class="text-xs uppercase font-bold text-yellow-500/90 block mb-2">Complete Inclusions:</span>
+              <ul id="mInclusionsList" class="text-xs text-slate-300 space-y-1.5 max-h-48 overflow-y-auto pr-2">
+                <!-- Populated dynamically -->
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="bg-black/80 px-6 py-4 border-t border-slate-800 flex items-center justify-between text-xs">
+        <span class="text-slate-400">RebongSancon Funeral Services • Group 15</span>
+        <button onclick="closePackageDetailModal()" class="px-5 py-2 rounded-xl bg-yellow-500 text-black font-bold hover:bg-yellow-400 transition-colors">
+          Close Window
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- UPLOAD BILLBOARD BANNER MODAL -->
+  <div id="billboardUploadModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-slate-900 text-white w-full max-w-md rounded-3xl border border-yellow-500/40 shadow-2xl p-6 space-y-5 animate-fade-in">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <i data-lucide="image-plus" class="w-5 h-5 text-yellow-400"></i>
+          <h3 class="font-bold text-sm text-white">Update Billboard Advertisement Image</h3>
+        </div>
+        <button onclick="closeBillboardUploadModal()" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form onsubmit="handleBillboardUpload(event)" enctype="multipart/form-data" class="space-y-4 text-xs">
+        <div>
+          <label class="block font-bold text-slate-300 uppercase text-[11px] mb-1.5">Select Promo Banner Image</label>
+          <input
+            type="file"
+            id="billboardInputFile"
+            name="billboard_image"
+            accept="image/*"
+            required
+            class="w-full text-xs text-slate-300 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-yellow-500 file:text-black hover:file:bg-yellow-400 cursor-pointer bg-slate-950 p-2 rounded-xl border border-slate-800"
+          />
+        </div>
+
+        <div class="pt-2 flex justify-end gap-2">
+          <button type="button" onclick="closeBillboardUploadModal()" class="px-4 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 font-semibold">
+            Cancel
+          </button>
+          <button type="submit" id="btnUploadBillboard" class="px-5 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-xl transition-all shadow">
+            Upload & Save Image
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Package Data JSON -->
+  <script id="catalogPackagesData" type="application/json">
+  [
+    {% for c in caskets %}
+    {
+      "casketCode": {{ c.casket_code | tojson | safe }},
+      "qrCode": {{ (c.qr_code or c.casket_code) | tojson | safe }},
+      "qrImageUrl": {{ (c.qr_image_url or ('/static/uploads/qrcodes/' ~ c.casket_code ~ '.png')) | tojson | safe }},
+      "name": {{ c.name | tojson | safe }},
+      "category": {{ (c.category or 'Funeral Package') | tojson | safe }},
+      "material": {{ (c.material or 'Solid Wood') | tojson | safe }},
+      "dimensions": {{ (c.dimensions or 'Standard Full Size') | tojson | safe }},
+      "basePrice": {{ c.base_price or 0 }},
+      "inclusions": {{ (c.inclusions or []) | tojson | safe }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+  </script>
+
+  <!-- JavaScript Interaction -->
+  <script>
+    lucide.createIcons();
+
+    const packagesCatalog = {};
+    try {
+      const raw = JSON.parse(document.getElementById('catalogPackagesData')?.textContent || '[]');
+      raw.forEach(p => {
+        packagesCatalog[p.casketCode] = p;
+      });
+    } catch (e) {
+      console.error("Error loading packages catalog:", e);
+    }
+
+    function filterPackages(category) {
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        if (btn.dataset.cat === category) {
+          btn.classList.add('bg-yellow-500', 'text-black', 'border-yellow-500/50');
+          btn.classList.remove('bg-slate-900', 'text-slate-300', 'border-slate-800');
+        } else {
+          btn.classList.remove('bg-yellow-500', 'text-black', 'border-yellow-500/50');
+          btn.classList.add('bg-slate-900', 'text-slate-300', 'border-slate-800');
+        }
+      });
+
+      const cards = document.querySelectorAll('.package-card');
+      cards.forEach(card => {
+        const cat = (card.dataset.category || '').toLowerCase();
+        const mat = (card.dataset.material || '').toLowerCase();
+        const price = parseFloat(card.dataset.price || '0');
+
+        if (category === 'all') {
+          card.classList.remove('hidden');
+        } else if (category === 'hardwood') {
+          if (cat.includes('hardwood') || mat.includes('oak') || mat.includes('mahog') || mat.includes('wood')) {
+            card.classList.remove('hidden');
+          } else {
+            card.classList.add('hidden');
+          }
+        } else if (category === 'metal') {
+          if (cat.includes('metal') || cat.includes('steel') || mat.includes('steel') || cat.includes('gasket')) {
+            card.classList.remove('hidden');
+          } else {
+            card.classList.add('hidden');
+          }
+        } else if (category === 'budget') {
+          if (price <= 50000 || cat.includes('budget') || cat.includes('simple')) {
+            card.classList.remove('hidden');
+          } else {
+            card.classList.add('hidden');
+          }
+        }
+      });
+    }
+
+    function openPackageDetailModal(code) {
+      const p = packagesCatalog[code];
+      if (!p) return;
+
+      document.getElementById('mCategory').textContent = p.category || 'Package';
+      document.getElementById('mTitle').textContent = p.name;
+      document.getElementById('mCode').textContent = p.casketCode;
+      document.getElementById('mPrice').textContent = `₱${parseFloat(p.basePrice || 0).toLocaleString('en-US', { minimumFractionDigits: 0 })}`;
+      document.getElementById('mMaterial').textContent = p.material || '--';
+      document.getElementById('mDimensions').textContent = p.dimensions || '--';
+      document.getElementById('mQrImage').src = p.qrImageUrl || `/static/uploads/qrcodes/${p.casketCode}.png`;
+
+      const listEl = document.getElementById('mInclusionsList');
+      listEl.innerHTML = '';
+      if (Array.isArray(p.inclusions) && p.inclusions.length > 0) {
+        p.inclusions.forEach(inc => {
+          const li = document.createElement('li');
+          li.className = 'flex items-start gap-2';
+          li.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5"></i><span>${inc}</span>`;
+          listEl.appendChild(li);
+        });
+      } else {
+        listEl.innerHTML = '<li class="text-slate-500 italic">No inclusions listed</li>';
+      }
+
+      document.getElementById('packageDetailModal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closePackageDetailModal() {
+      document.getElementById('packageDetailModal').classList.add('hidden');
+    }
+
+    function openBillboardUploadModal() {
+      document.getElementById('billboardUploadModal').classList.remove('hidden');
+    }
+
+    function closeBillboardUploadModal() {
+      document.getElementById('billboardUploadModal').classList.add('hidden');
+    }
+
+    async function handleBillboardUpload(e) {
+      e.preventDefault();
+      const fileInput = document.getElementById('billboardInputFile');
+      if (!fileInput.files || !fileInput.files[0]) {
+        alert('Please choose an image file first.');
+        return;
+      }
+      const formData = new FormData();
+      formData.append('billboard_image', fileInput.files[0]);
+
+      const btn = document.getElementById('btnUploadBillboard');
+      btn.disabled = true;
+      btn.textContent = 'Uploading...';
+
+      try {
+        const res = await fetch('/api/billboard/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('Billboard image updated successfully!');
+          document.getElementById('billboardDisplayImg').src = data.image_url;
+          closeBillboardUploadModal();
+        } else {
+          alert(data.message || 'Failed to upload image.');
+        }
+      } catch (err) {
+        alert('Upload error: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Upload & Save Image';
+      }
+    }
+
+    // Auto-cycling for showroom TV displays (Fast 2-second rotation)
+    let autoPlayInterval = null;
+    let autoPlayIndex = 0;
+    const CYCLE_SPEED_MS = 2000; // 2 seconds per package card
+
+    function cycleNextCard() {
+      const cardList = Array.from(document.querySelectorAll('.package-card:not(.hidden)'));
+      if (cardList.length === 0) return;
+      cardList.forEach(c => c.classList.remove('ring-4', 'ring-yellow-500', 'scale-[1.02]'));
+      const activeCard = cardList[autoPlayIndex % cardList.length];
+      if (activeCard) {
+        activeCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        activeCard.classList.add('ring-4', 'ring-yellow-500', 'scale-[1.02]');
+      }
+      autoPlayIndex = (autoPlayIndex + 1) % cardList.length;
+    }
+
+    function toggleAutoPlay() {
+      const btn = document.getElementById('btnAutoPlay');
+      const icon = document.getElementById('playIcon');
+      const text = document.getElementById('playText');
+      const cardList = Array.from(document.querySelectorAll('.package-card:not(.hidden)'));
+
+      if (autoPlayInterval) {
+        clearInterval(autoPlayInterval);
+        autoPlayInterval = null;
+        text.textContent = 'Auto Billboard';
+        btn.classList.remove('bg-yellow-500', 'text-black');
+        btn.classList.add('bg-yellow-500/10', 'text-yellow-400');
+        icon.setAttribute('data-lucide', 'play');
+        cardList.forEach(c => c.classList.remove('ring-4', 'ring-yellow-500', 'scale-[1.02]'));
+      } else {
+        if (cardList.length === 0) return;
+        text.textContent = 'Cycling (Fast)...';
+        btn.classList.remove('bg-yellow-500/10', 'text-yellow-400');
+        btn.classList.add('bg-yellow-500', 'text-black');
+        icon.setAttribute('data-lucide', 'pause');
+
+        // Immediately highlight & scroll without waiting for first interval
+        cycleNextCard();
+        autoPlayInterval = setInterval(cycleNextCard, CYCLE_SPEED_MS);
+      }
+      lucide.createIcons();
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(e => console.log(e));
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+  </script>
+</body>
+</html>
+

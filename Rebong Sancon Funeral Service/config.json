@@ -1,0 +1,6 @@
+{
+    "GMAIL_USER": "pejasdarell@gmail.com",
+    "GMAIL_APP_PASSWORD": "wgwzfcwoomaoxrsh",
+    "ESP32_IP": "192.168.1.86",
+    "_comment": "Configuration for Gmail receipts and ESP32 Smart QR hardware gateway."
+}

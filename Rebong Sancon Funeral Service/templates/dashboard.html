@@ -1,0 +1,634 @@
+{% extends 'base.html' %}
+{% block title %}Operations Analytics & Dashboard | RebongSancon{% endblock %}
+{% block breadcrumb %}Dashboard & Analytics{% endblock %}
+
+{% block head %}
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-7">
+
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <div class="flex items-center gap-2 mb-1">
+        <h1 class="text-2xl font-black text-slate-800 tracking-tight">
+          Operations &amp; Business Analytics
+        </h1>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Live Telemetry
+        </span>
+      </div>
+      <p class="text-xs text-slate-500 font-medium">
+        Rebong-Sancon Funeral Services — real-time contract sales, collection efficiency, chapel occupancy &amp; inventory insights
+      </p>
+    </div>
+    <div class="flex items-center gap-2 self-start sm:self-auto">
+      <button onclick="window.location.reload()" 
+              class="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 shadow-sm transition-all">
+        <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-slate-500"></i>
+        <span>Refresh</span>
+      </button>
+      <a href="/pos"
+         class="inline-flex items-center gap-2 px-4 py-2.5 bg-black hover:bg-yellow-500 hover:text-black text-white text-xs font-bold rounded-xl transition-all shadow-sm border border-yellow-500/20">
+        <i data-lucide="scan-line" class="w-4 h-4"></i>
+        <span>Launch Smart POS</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Primary Analytics KPI Cards (4-Column) -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+    <!-- Card 1: Total Collected Cash -->
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow space-y-3 relative overflow-hidden">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Collected Cash / Deposits</span>
+        <div class="p-2 rounded-xl bg-amber-500 text-white shadow-sm">
+          <i data-lucide="coins" class="w-4 h-4"></i>
+        </div>
+      </div>
+      <div>
+        <h3 class="text-2xl font-black text-slate-800">{{ analytics.total_collected | currency }}</h3>
+        <div class="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 text-[11px]">
+          <span class="text-emerald-600 font-semibold flex items-center gap-1">
+            <i data-lucide="trending-up" class="w-3 h-3"></i> {{ analytics.collection_rate }}% Collection Rate
+          </span>
+          <span class="text-slate-400 font-medium">{{ analytics.total_orders }} contracts</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2: Total Contract Volume (Gross Billing) -->
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow space-y-3 relative overflow-hidden">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Gross Contract Billings</span>
+        <div class="p-2 rounded-xl bg-slate-900 text-white shadow-sm">
+          <i data-lucide="receipt" class="w-4 h-4"></i>
+        </div>
+      </div>
+      <div>
+        <h3 class="text-2xl font-black text-slate-800">{{ analytics.total_revenue | currency }}</h3>
+        <div class="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 text-[11px]">
+          <span class="text-slate-500 font-medium">Avg Contract:</span>
+          <span class="font-bold text-slate-700 font-mono">{{ analytics.avg_order_value | currency }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3: Outstanding Receivables -->
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow space-y-3 relative overflow-hidden">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Outstanding Receivables</span>
+        <div class="p-2 rounded-xl bg-rose-500 text-white shadow-sm">
+          <i data-lucide="alert-circle" class="w-4 h-4"></i>
+        </div>
+      </div>
+      <div>
+        <h3 class="text-2xl font-black text-rose-600">{{ analytics.total_receivables | currency }}</h3>
+        <div class="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 text-[11px]">
+          <span class="text-slate-400 font-medium">Pending collection:</span>
+          <span class="font-bold text-rose-500">{{ (100 - analytics.collection_rate) | round(1) }}% balance</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 4: Active Vigils & Chapel Occupancy -->
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow space-y-3 relative overflow-hidden">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Active Vigils</span>
+        <div class="p-2 rounded-xl bg-emerald-500 text-white shadow-sm">
+          <i data-lucide="calendar-check-2" class="w-4 h-4"></i>
+        </div>
+      </div>
+      <div>
+        <h3 class="text-2xl font-black text-slate-800">{{ active_vigils }} Active</h3>
+        <div class="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 text-[11px]">
+          <span class="text-slate-400 font-medium">Chapels &amp; Home Vigils</span>
+          <span class="text-emerald-600 font-semibold">Active Bookings</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Charts Row 1: Revenue Trends & Package Popularity -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- 6-Month Rolling Revenue & Collections Trend (Col 8) -->
+    <div class="lg:col-span-8 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+        <div>
+          <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+            <i data-lucide="bar-chart-3" class="w-4 h-4 text-amber-500"></i>
+            Revenue Billings vs. Cash Collections Trend
+          </h3>
+          <p class="text-[11px] text-slate-400 mt-0.5">Rolling 6-month comparison of billed contracts and deposits collected (PHP)</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-md bg-slate-100 text-slate-700">
+            <span class="w-2.5 h-2.5 rounded-sm bg-slate-800 inline-block"></span> Total Billed
+          </span>
+          <span class="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-md bg-amber-50 text-amber-800 border border-amber-200">
+            <span class="w-2.5 h-2.5 rounded-sm bg-yellow-500 inline-block"></span> Cash Collected
+          </span>
+        </div>
+      </div>
+
+      <!-- Chart Container -->
+      <div class="relative h-64 w-full">
+        <canvas id="revenueChart"></canvas>
+      </div>
+
+      <!-- Summary Pill Indicators Below Chart -->
+      <div class="grid grid-cols-3 gap-3 pt-3 border-t border-slate-100 text-center">
+        <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+          <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Gross Billed</span>
+          <span class="text-sm font-black text-slate-800">{{ analytics.total_revenue | currency }}</span>
+        </div>
+        <div class="p-2.5 rounded-xl bg-amber-50/60 border border-amber-100">
+          <span class="text-[10px] uppercase font-bold text-amber-700 block tracking-wider">Deposits Collected</span>
+          <span class="text-sm font-black text-amber-900">{{ analytics.total_collected | currency }}</span>
+        </div>
+        <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+          <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Collection Efficiency</span>
+          <span class="text-sm font-black text-emerald-600">{{ analytics.collection_rate }}%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Package & Casket Distribution (Col 4) -->
+    <div class="lg:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4 flex flex-col justify-between">
+      <div class="border-b border-slate-100 pb-3">
+        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+          <i data-lucide="pie-chart" class="w-4 h-4 text-blue-500"></i>
+          Package Popularity
+        </h3>
+        <p class="text-[11px] text-slate-400 mt-0.5">Distribution of funeral packages selected by families</p>
+      </div>
+
+      <!-- Doughnut Chart Container -->
+      <div class="relative h-56 w-full flex items-center justify-center">
+        <canvas id="packageChart"></canvas>
+      </div>
+
+      <!-- Top Package Legend List -->
+      <div class="space-y-1.5 pt-3 border-t border-slate-100 text-xs">
+        <div class="flex items-center justify-between text-[11px] text-slate-500 font-semibold">
+          <span>Top Packages</span>
+          <span>Orders Booked</span>
+        </div>
+        {% for idx in range(analytics.package_labels | length) %}
+        <div class="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-slate-50">
+          <span class="font-medium text-slate-700 truncate max-w-[180px]">{{ analytics.package_labels[idx] }}</span>
+          <span class="font-bold font-mono text-slate-900">{{ analytics.package_data[idx] }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Charts Row 2: Inventory Stock Levels & Operational Highlights -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- Casket Stock Inventory Health (Col 7) -->
+    <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div>
+          <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+            <i data-lucide="boxes" class="w-4 h-4 text-emerald-500"></i>
+            Casket Showroom Stock Health
+          </h3>
+          <p class="text-[11px] text-slate-400 mt-0.5">Current units in stock by casket model</p>
+        </div>
+        <div class="flex items-center gap-2">
+          {% if low_stock_count > 0 %}
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+              ⚠️ {{ low_stock_count }} Low Stock
+            </span>
+          {% else %}
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+              ✓ All Healthy
+            </span>
+          {% endif %}
+          <a href="/inventory" class="text-xs text-amber-600 hover:text-amber-800 font-bold transition-colors">Manage →</a>
+        </div>
+      </div>
+
+      <!-- Horizontal Bar Chart -->
+      <div class="relative h-60 w-full">
+        <canvas id="stockChart"></canvas>
+      </div>
+
+      <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-500">
+        <span class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Healthy (3+ units)
+          <span class="w-2 h-2 rounded-full bg-amber-500 ml-2"></span> Low Stock (&le; 2 units)
+        </span>
+        <span class="font-bold text-slate-700">Total Units: {{ analytics.total_stock_units }}</span>
+      </div>
+    </div>
+
+    <!-- Payment Status Breakdown & Operations Highlights (Col 5) -->
+    <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4 flex flex-col justify-between">
+      <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+        <div>
+          <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+            <i data-lucide="wallet-cards" class="w-4 h-4 text-purple-500"></i>
+            Payment Status &amp; Telemetry
+          </h3>
+          <p class="text-[11px] text-slate-400 mt-0.5">Order settlement health &amp; discounts</p>
+        </div>
+        <a href="/billing" class="text-xs text-amber-600 hover:text-amber-800 font-bold transition-colors">Billing →</a>
+      </div>
+
+      <!-- Mini Doughnut Chart for Payment Status -->
+      <div class="relative h-44 w-full flex items-center justify-center">
+        <canvas id="paymentStatusChart"></canvas>
+      </div>
+
+      <!-- Highlights Grid -->
+      <div class="grid grid-cols-2 gap-2.5 pt-2 border-t border-slate-100 text-xs">
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
+          <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Senior Discounts</span>
+          <span class="font-black text-slate-800 text-sm block">{{ analytics.total_senior_discounts | currency }}</span>
+          <span class="text-[10px] text-emerald-600 font-medium">{{ analytics.senior_discount_count }} discount(s) applied</span>
+        </div>
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
+          <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">ESP32 POS Gateway</span>
+          <span class="font-black text-emerald-600 text-sm block flex items-center gap-1">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Online
+          </span>
+          <span class="text-[10px] text-slate-500 font-medium">QR Scanning Ready</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Operational Section Split: Active Vigil Reservations & Recent POS Billing Logs -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- Active Reservations -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm">
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
+            <i data-lucide="calendar-check-2" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-800 text-sm">Ongoing Vigil Reservations</h3>
+            <p class="text-[11px] text-slate-400">Chapel schedules &amp; family services</p>
+          </div>
+        </div>
+        <a href="/reservations" class="text-xs text-amber-600 hover:text-amber-800 font-semibold transition-colors">View All →</a>
+      </div>
+
+      <div class="p-4 space-y-2.5">
+        {% for r in reservations %}
+        <div class="p-3.5 rounded-xl border border-slate-100 bg-slate-50 hover:bg-amber-50/40 hover:border-amber-200/60 transition-colors space-y-1 text-xs">
+          <div class="flex justify-between items-start font-bold text-slate-800">
+            <span>{{ r.deceased_name or r.deceasedName }}</span>
+            <span class="text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 text-[10px] shrink-0 ml-2">
+              {{ r.chapel_room or r.chapelRoom }}
+            </span>
+          </div>
+          <p class="text-slate-500">{{ r.start_date or r.startDate }} → {{ r.end_date or r.endDate }}</p>
+          <p class="text-[11px] text-slate-400 font-medium">
+            <i data-lucide="truck" class="w-3 h-3 inline mr-0.5"></i> {{ r.hearse_driver or r.hearseDriver }}
+          </p>
+        </div>
+        {% else %}
+        <div class="py-10 text-center">
+          <i data-lucide="calendar-x-2" class="w-10 h-10 text-slate-200 mx-auto mb-2"></i>
+          <p class="text-xs text-slate-400 font-medium">No active vigil reservations.</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Recent POS Billing -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm">
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="p-1.5 rounded-lg bg-amber-50 text-amber-600">
+            <i data-lucide="receipt-text" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-800 text-sm">Recent POS Billing Logs</h3>
+            <p class="text-[11px] text-slate-400">Invoices generated through smart POS</p>
+          </div>
+        </div>
+        <a href="/billing" class="text-xs text-amber-600 hover:text-amber-800 font-semibold transition-colors">View All →</a>
+      </div>
+
+      <div class="p-4 space-y-2.5">
+        {% for t in transactions %}
+        <div class="flex items-center justify-between text-xs p-3.5 rounded-xl border border-slate-100 bg-slate-50 hover:bg-amber-50/40 hover:border-amber-200/60 transition-colors">
+          <div class="min-w-0">
+            <span class="font-bold font-mono text-slate-800 block truncate">{{ t.invoice_no or t.invoiceNo }}</span>
+            <p class="text-slate-600 font-semibold truncate">{{ t.deceased_name or t.deceased }}</p>
+            <p class="text-[11px] text-slate-400 truncate">{{ t.casket_name or t.package }}</p>
+          </div>
+          <div class="text-right ml-3 shrink-0">
+            <span class="font-bold text-slate-900 block">{{ (t.total_amount or t.total) | currency }}</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full font-bold mt-1 inline-block {% if (t.remaining_balance or t.balance) == 0 %}bg-emerald-100 text-emerald-800{% else %}bg-amber-100 text-amber-800{% endif %}">
+              {{ t.payment_status or t.status }}
+            </span>
+          </div>
+        </div>
+        {% else %}
+        <div class="py-10 text-center">
+          <i data-lucide="file-x-2" class="w-10 h-10 text-slate-200 mx-auto mb-2"></i>
+          <p class="text-xs text-slate-400 font-medium">No recent billing logs found.</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Today's Staff Attendance -->
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-sm">
+    <div class="p-5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
+      <div class="flex items-center gap-2.5">
+        <div class="p-1.5 rounded-lg bg-yellow-500/20 text-yellow-600">
+          <i data-lucide="clock" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-800 text-sm">Today's Staff In &amp; Out Attendance</h3>
+          <p class="text-[11px] text-slate-400">Daily time records &amp; active shift tracking</p>
+        </div>
+        <span class="text-xs bg-emerald-50 text-emerald-700 font-bold px-2.5 py-0.5 rounded-full border border-emerald-200 ml-2">
+          {{ staff_on_duty }} On Duty
+        </span>
+      </div>
+      <a href="/attendance" class="text-xs text-amber-600 hover:text-amber-800 font-semibold transition-colors">Full Logs →</a>
+    </div>
+
+    <div class="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      {% for att in attendance_today %}
+      <div class="p-3.5 rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100/60 transition-colors flex items-center justify-between gap-3 text-xs">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-9 h-9 rounded-full bg-black text-yellow-500 font-bold flex items-center justify-center text-xs shrink-0 border border-yellow-500/20">
+            {{ att.username[0] | upper }}
+          </div>
+          <div class="min-w-0">
+            <span class="font-bold text-slate-800 block truncate">{{ att.username }}</span>
+            <span class="text-[11px] text-emerald-700 font-mono font-semibold">In: {{ att.time_in_str or att.time_in or '--' }}</span>
+            {% if att.time_out_str or att.time_out %}
+              <span class="text-[11px] text-slate-500 font-mono block">Out: {{ att.time_out_str or att.time_out }}</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="shrink-0">
+          {% if att.status == 'On Duty' or not (att.time_out_str or att.time_out) %}
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Active
+            </span>
+          {% else %}
+            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700">Done</span>
+          {% endif %}
+        </div>
+      </div>
+      {% else %}
+      <div class="col-span-full py-10 text-center">
+        <i data-lucide="users" class="w-10 h-10 text-slate-200 mx-auto mb-2"></i>
+        <p class="text-xs text-slate-400 font-medium">No staff members have clocked in yet today.</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const analytics = {{ analytics | tojson | safe }};
+
+    // Check if Chart.js is loaded
+    if (typeof Chart === 'undefined') {
+      console.warn('Chart.js CDN did not load.');
+      return;
+    }
+
+    // Chart.js global typography styling
+    Chart.defaults.font.family = 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+    Chart.defaults.color = '#64748b';
+
+    const formatCurrency = (val) => '₱' + Number(val || 0).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+    // 1. Revenue & Collections Trend Chart (Combo Bar)
+    const ctxRevenue = document.getElementById('revenueChart');
+    if (ctxRevenue) {
+      new Chart(ctxRevenue.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: analytics.month_labels || [],
+          datasets: [
+            {
+              label: 'Gross Billed (₱)',
+              data: analytics.monthly_billed_data || [],
+              backgroundColor: 'rgba(30, 41, 59, 0.85)', // slate-800
+              hoverBackgroundColor: '#0f172a',
+              borderRadius: 8,
+              borderSkipped: false,
+              barPercentage: 0.55,
+              categoryPercentage: 0.65,
+              order: 2
+            },
+            {
+              label: 'Cash Deposits (₱)',
+              data: analytics.monthly_collected_data || [],
+              backgroundColor: 'rgba(234, 179, 8, 0.90)', // yellow-500
+              hoverBackgroundColor: '#ca8a04',
+              borderRadius: 8,
+              borderSkipped: false,
+              barPercentage: 0.55,
+              categoryPercentage: 0.65,
+              order: 1
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false // Using custom indicators in card header
+            },
+            tooltip: {
+              backgroundColor: '#0f172a',
+              padding: 12,
+              cornerRadius: 10,
+              titleFont: { size: 12, weight: 'bold' },
+              bodyFont: { size: 12 },
+              callbacks: {
+                label: function(context) {
+                  return ` ${context.dataset.label}: ${formatCurrency(context.parsed.y)}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { font: { size: 11, weight: '600' }, color: '#64748b' }
+            },
+            y: {
+              grid: { color: '#f1f5f9' },
+              ticks: {
+                font: { size: 11 },
+                color: '#94a3b8',
+                callback: function(value) {
+                  if (value >= 1000000) return '₱' + (value / 1000000).toFixed(1) + 'M';
+                  if (value >= 1000) return '₱' + (value / 1000).toFixed(0) + 'k';
+                  return '₱' + value;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // 2. Package Distribution Doughnut Chart
+    const ctxPackage = document.getElementById('packageChart');
+    if (ctxPackage) {
+      new Chart(ctxPackage.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: analytics.package_labels || [],
+          datasets: [{
+            data: analytics.package_data || [],
+            backgroundColor: [
+              '#eab308', // Yellow
+              '#3b82f6', // Blue
+              '#10b981', // Emerald
+              '#8b5cf6', // Purple
+              '#f97316', // Orange
+              '#64748b'  // Slate
+            ],
+            borderWidth: 2,
+            borderColor: '#ffffff',
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '68%',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0f172a',
+              padding: 10,
+              cornerRadius: 8,
+              callbacks: {
+                label: function(ctx) {
+                  return ` ${ctx.label}: ${ctx.raw} order(s)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // 3. Casket Stock Health Chart (Horizontal Bar)
+    const ctxStock = document.getElementById('stockChart');
+    if (ctxStock) {
+      new Chart(ctxStock.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: analytics.casket_stock_labels || [],
+          datasets: [{
+            label: 'Stock Quantity',
+            data: analytics.casket_stock_data || [],
+            backgroundColor: analytics.casket_stock_colors || '#10b981',
+            borderRadius: 6,
+            barPercentage: 0.65
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0f172a',
+              padding: 10,
+              cornerRadius: 8,
+              callbacks: {
+                label: function(ctx) {
+                  const val = ctx.raw;
+                  return ` Stock: ${val} unit(s) ${val <= 2 ? '⚠️ (Low Stock)' : '✓ (Healthy)'}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              grid: { color: '#f1f5f9' },
+              ticks: { precision: 0, font: { size: 11 } }
+            },
+            y: {
+              grid: { display: false },
+              ticks: { font: { size: 11, weight: '500' }, color: '#334155' }
+            }
+          }
+        }
+      });
+    }
+
+    // 4. Payment Health Status Chart (Doughnut)
+    const ctxPayment = document.getElementById('paymentStatusChart');
+    if (ctxPayment) {
+      new Chart(ctxPayment.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Paid in Full', 'Partial (Deposit)', 'Pending Payment'],
+          datasets: [{
+            data: analytics.payment_status_counts || [0, 0, 0],
+            backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+            borderWidth: 2,
+            borderColor: '#ffffff',
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '68%',
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                boxWidth: 8,
+                padding: 8,
+                font: { size: 10, weight: '600' }
+              }
+            },
+            tooltip: {
+              backgroundColor: '#0f172a',
+              padding: 10,
+              cornerRadius: 8,
+              callbacks: {
+                label: function(ctx) {
+                  return ` ${ctx.label}: ${ctx.raw} order(s)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}
